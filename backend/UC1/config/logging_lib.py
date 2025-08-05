@@ -35,7 +35,7 @@ class Logging:
         frame = inspect.stack()[2]
         filename = os.path.basename(frame.filename)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
-        return f"[{timestamp}] [{level}] [{filename}:{frame.lineno} - {frame.function}()] ['message': {msg}]"
+        return f"[{timestamp}] [{level}] ['file': {filename}:{frame.lineno}, 'func': {frame.function}(), 'message': {msg}]"
 
     @staticmethod
     def info(message: Any) -> None:
