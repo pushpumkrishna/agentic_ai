@@ -11,7 +11,7 @@ LOG_LEVELS = {
     "ERROR": logging.ERROR,
 }
 
-LOG_DIR = "./logs"
+LOG_DIR = "logs"
 LOG_FILE = "running_logs.log"
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE_PATH = os.path.join(LOG_DIR, LOG_FILE)

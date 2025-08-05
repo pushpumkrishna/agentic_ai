@@ -1,6 +1,6 @@
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
-from backend.UC1.config.config import AzureConfig
-from backend.UC1.config.logging_lib import Logging
+from backend.config.config import AzureConfig
+from backend.config.logging_lib import logger
 
 
 class AzureOpenAIModels(AzureConfig):
@@ -27,10 +27,10 @@ class AzureOpenAIModels(AzureConfig):
                 api_key=azure_config.get_azure_openai_key,
                 azure_deployment=azure_config.get_gpt_model_embedding_deployment_name,
             )
-            # Logging.info("Azure embedding model initialized.")
+            logger.info("Azure embedding model initialized.")
             return embedding_model
         except KeyError as exception:
-            Logging.error(f"Error: Missing key in config file: {exception}")
+            logger.error(f"Error: Missing key in config file: {exception}")
             raise
 
     # @staticmethod
@@ -41,7 +41,7 @@ class AzureOpenAIModels(AzureConfig):
         :param temperature: Temperature setting for the model.
         :return: AzureChatOpenAI instance.
         """
-        # Logging.info("Initializing Azure GPT-3.5 model...")
+        logger.info("Initializing Azure GPT-3.5 model...")
         try:
             model = AzureChatOpenAI(
                 azure_endpoint=self.get_azure_openai_base,
@@ -53,7 +53,7 @@ class AzureOpenAIModels(AzureConfig):
             # Logging.info("Azure GPT-3.5 model initialized.")
             return model
         except KeyError as exception:
-            Logging.error(f"Error: Missing key in config file: {exception}")
+            logger.error(f"Error: Missing key in config file: {exception}")
             raise
 
     # @staticmethod
@@ -63,7 +63,7 @@ class AzureOpenAIModels(AzureConfig):
 
         :return: AzureOpenAI instance.
         """
-        Logging.info("Initializing Azure GPT-4 model...")
+        logger.info("Initializing Azure GPT-4 model...")
         try:
             # azure_config = AzureConfig()
             model = AzureChatOpenAI(
@@ -74,10 +74,10 @@ class AzureOpenAIModels(AzureConfig):
                 temperature=temperature,
                 max_tokens=2000,
             )
-            Logging.info("Azure GPT-4 model initialized.")
+            logger.info("Azure GPT-4 model initialized.")
             return model
         except KeyError as exception:
-            Logging.error(f"Error: Missing key in config file: {exception}")
+            logger.error(f"Error: Missing key in config file: {exception}")
             raise
 
 

@@ -3,7 +3,7 @@ from flask import app as flask_app
 from dotenv import load_dotenv
 import os
 import configparser
-from backend.UC1.config.logging_lib import Logging
+from backend.config.logging_lib import logger
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,20 +27,20 @@ def read_config_file(filename: str = "config.ini") -> configparser.RawConfigPars
         # Attempt to read the configuration file
         if os.path.exists(file_path):
             config_.read(file_path)
-            Logging.info(f"Configuration loaded successfully from {relative_path}")
+            logger.info(f"Configuration loaded successfully from {relative_path}")
         else:
             raise FileNotFoundError(
                 f"Configuration file {filename} not found at {relative_path}"
             )
 
     except FileNotFoundError as fnf_error:
-        Logging.error(f"Error: {fnf_error}")
+        logger.error(f"Error: {fnf_error}")
         raise  # Re-raise the error to notify the caller if needed
     except configparser.Error as config_error:
-        Logging.error(f"Error parsing configuration file: {config_error}")
+        logger.error(f"Error parsing configuration file: {config_error}")
         raise  # Re-raise for the caller to handle
     except Exception as e:
-        Logging.error(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         raise  # Re-raise unexpected exceptions
 
     return config_
@@ -215,5 +215,5 @@ def config_from_ini(app: flask_app):
     """
     cfg = Config()
     cfg.load_config()
-    Logging.info("done")
+    logger.info("done")
     app.config.from_object(cfg)
