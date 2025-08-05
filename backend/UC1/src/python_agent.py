@@ -3,10 +3,10 @@ import inspect
 import re
 from langchain.schema import HumanMessage
 from langchain_core.prompts import PromptTemplate
-from backend.UC1.config.azure_models import AzureOpenAIModels
+from backend.config.azure_models import AzureOpenAIModels
 from typing import Optional, Dict, Any, List
-from backend.UC1.config.logging_lib import logger
-from backend.UC1.utils.prompts import PROMPT1, PROMPT2
+from backend.config.logging_lib import logger
+from backend.utils.prompts import PROMPT1, PROMPT2
 
 
 class PythonCodeReaderAgent:
