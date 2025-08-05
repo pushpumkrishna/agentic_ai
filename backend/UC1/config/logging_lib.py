@@ -18,13 +18,13 @@ LOG_FILE_PATH = os.path.join(LOG_DIR, LOG_FILE)
 
 # Basic logging config — message only, no wrapping
 logging.basicConfig(
-    format='%(message)s',
+    format="%(message)s",
     # encoding='utf-8',
     level=LOG_LEVELS["INFO"],
     handlers=[
         logging.FileHandler(LOG_FILE_PATH, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout)
-    ]
+        logging.StreamHandler(sys.stdout),
+    ],
 )
 
 

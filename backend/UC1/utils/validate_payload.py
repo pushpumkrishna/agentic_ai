@@ -51,4 +51,5 @@ def validate_payload(func):
             )
         # Proceed to the wrapped function if all validations pass
         return func(*args, **kwargs)
+
     return wrapper

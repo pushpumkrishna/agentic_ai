@@ -16,4 +16,5 @@ def measure_time(func):
             f"seconds or ({elapsed_time_minutes:.4f} minutes)"
         )
         return result
+
     return wrapper

@@ -12,11 +12,11 @@ def main():
 
     # Mapping choices to module paths
     use_case_map = {
-        '1': 'use_cases.use_case_1',
-        '2': 'use_cases.use_case_2',
-        'app1': 'use_cases.flask_apps.app1.server',
-        'app2': 'use_cases.flask_apps.app2.server',
-        'app3': 'use_cases.flask_apps.app3.server',
+        "1": "use_cases.use_case_1",
+        "2": "use_cases.use_case_2",
+        "app1": "use_cases.flask_apps.app1.server",
+        "app2": "use_cases.flask_apps.app2.server",
+        "app3": "use_cases.flask_apps.app3.server",
     }
 
     module_name = use_case_map.get(choice)
