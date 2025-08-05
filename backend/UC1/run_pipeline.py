@@ -1,5 +1,5 @@
 import json
-from backend.UC1.src.temp import Agent
+from backend.UC1.src.python_agent import PythonCodeReaderAgent
 
 
 class StringUtils:
@@ -118,17 +118,37 @@ class ArithmeticOperations:
 
 
 if __name__ == "__main__":
+    print("[INFO] Starting agent setup and class registration...")
+
     query = input("Query: ")
     ex = ArithmeticOperations()
     st = StringUtils()
-    ag = Agent()
-    ag.register_class(ex, alias="ArithmeticOperations")
-    ag.register_class(st, alias='StringUtils')
-    methods = ag.list_methods()
-    classes = ag.list_classes()
-    ag.llm_fetch_class_methods(query=query)
-    ag.llm_determine_input_parameters(query=query)
-    print(json.dumps(ag.get_current_pipeline(), indent=4))
-    pipeline = ag.get_current_pipeline()
-    results = ag.run_pipeline_with_dependencies(pipeline=pipeline)
+    agent = PythonCodeReaderAgent()
+    agent.register_class(ex, alias="ArithmeticOperations")
+    agent.register_class(st, alias="StringUtils")
+
+    print("[INFO] Classes registered successfully.")
+
+    print("[INFO] Fetching available methods and classes...")
+    methods = agent.list_methods()
+    classes = agent.list_classes()
+    print("[INFO] Fetched methods and classes.")
+
+    print("[INFO] Sending query to LLM to fetch relevant class methods...")
+    agent.llm_fetch_class_methods(query=query)
+    print("[INFO] LLM method selection complete.")
+
+    print("[INFO] Determining input parameters for selected methods...")
+    agent.llm_determine_input_parameters(query=query)
+    print("[INFO] Input parameters identified.")
+
+    print("[INFO] Current pipeline configuration:")
+    print(json.dumps(agent.get_current_pipeline(), indent=4))
+
+    print("[INFO] Running pipeline with resolved dependencies...")
+    pipeline = agent.get_current_pipeline()
+    results = agent.run_pipeline_with_dependencies(pipeline=pipeline)
+    print("[INFO] Pipeline execution completed.")
+
+    print("[INFO] Final results:")
     print(results)
