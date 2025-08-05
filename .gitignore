@@ -2,7 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+backend/UC1/config/config.ini
 # C extensions
 *.so
 
