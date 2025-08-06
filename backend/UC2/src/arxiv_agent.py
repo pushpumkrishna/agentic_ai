@@ -7,10 +7,9 @@ import ssl
 import datetime
 import time
 import warnings
-
 warnings.filterwarnings("ignore")
 # Disable SSL verification globally (for dev only)
-ssl._create_default_https_context = ssl._create_unverified_context
+ssl._create_default_https_context = ssl._create_unverified_context      # ignore
 
 
 class FetchArxivPapersInput(BaseModel):
@@ -29,7 +28,7 @@ class FetchArxivPapersTool(BaseTool):
 
     def _run(self, target_date: datetime.date) -> List[dict]:
         # List of AI-related categories
-        AI_CATEGORIES = ["cs.AI"]
+        AI_CATEGORIES = ["Hindu"]
 
         # Define the date range for the target date
         start_date = target_date.strftime("%Y%m%d%H%M")
