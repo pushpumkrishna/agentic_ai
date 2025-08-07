@@ -31,12 +31,12 @@ def extract_text_from_pdf(uploaded_file):
 
 # ------------------- Streamlit UI -------------------
 
-st.set_page_config(page_title="🧠 Resume-JD Matcher", layout="wide")
-st.markdown("# 🧠 GenAI Resume vs Job Description Matcher")
-st.markdown("Use AI agents to evaluate how well a candidate’s resume matches a job description.")
-
-with st.expander("ℹ️ Instructions", expanded=False):
-    st.markdown("""
+def draw_page_title():
+    st.set_page_config(page_title="🧠 Resume-JD Matcher", layout="wide")
+    st.markdown("# 🧠 GenAI Resume vs Job Description Matcher")
+    st.markdown("Use AI agents to evaluate how well a candidate’s resume matches a job description.")
+    with st.expander("ℹ️ Instructions", expanded=False):
+        st.markdown("""
         1. Upload or paste both a **Resume** and a **Job Description**.
         2. Click one of the action buttons to:
            - **Run Matching**: Analyze resume and job description for a match score.
@@ -45,119 +45,125 @@ with st.expander("ℹ️ Instructions", expanded=False):
         3. Results will appear below the buttons.
     """)
 
+
+def draw_dependency_graph():
+    # Dependency Graph
+    with st.expander("### 🔄 Agent Dependency Graph", expanded=False):
+        if GRAPHVIZ_AVAILABLE:  # Replace with GRAPHVIZ_AVAILABLE check
+            dot = graphviz.Digraph(comment="Resume-JD Matcher Agent Workflow")
+            dot.attr(rankdir='LR', size='10,8')
+
+            # === User Inputs ===
+            dot.node('U1', '👤 Resume Upload', shape='cylinder', color='orange', style='filled')
+            dot.node('U2', '👤 JD Upload', shape='cylinder', color='orange', style='filled')
+
+            # === Orchestrator ===
+            dot.node('O', '🧭 Orchestrator', shape='box', style='filled', color='lightblue')
+
+            # === Parsers ===
+            dot.node('R', '📄 Resume Parser', shape='component')
+            dot.node('J', '📑 JD Parser', shape='component')
+
+            # === Core Agents ===
+            dot.node('M', '🤝 Matcher', shape='box')
+            dot.node('E', '🛠️ Enhancer', shape='box')
+            dot.node('C', '✉️ Cover Letter', shape='box')
+            dot.node('X', '🧠 Recommendation', shape='box')
+
+            # === Final Outputs (clustered) ===
+            with dot.subgraph(name='cluster_outputs') as c:
+                c.attr(style='dashed', color='green', label='📦 Final Deliverables')
+                c.node_attr.update(style='filled', color='lightgreen')
+                c.node('MR', '📋 Match Report')
+                c.node('RE', '📄 Enhanced Resume')
+                c.node('CL', '✉️ Cover Letter')
+                c.node('RC', '🧠 Recommendation Summary')
+
+            # === Edges: Flow & Labels ===
+            # User → Orchestrator
+            dot.edge('U1', 'O', label='Resume')
+            dot.edge('U2', 'O', label='Job Description')
+
+            # Orchestrator → Parsers
+            dot.edge('O', 'R', label='Route Resume')
+            dot.edge('O', 'J', label='Route JD')
+
+            # Parsers → Matcher
+            dot.edge('R', 'M', label='Parsed Resume')
+            dot.edge('J', 'M', label='Parsed JD')
+
+            # Matcher → Match Report
+            dot.edge('M', 'MR', label='Match Report')
+
+            # Parsers → Enhancer
+            dot.edge('R', 'E', label='Resume')
+            dot.edge('J', 'E', label='JD')
+
+            # Enhancer → Enhanced Resume
+            dot.edge('E', 'RE', label='Improved Resume')
+
+            # Parsers → Cover Letter
+            dot.edge('R', 'C', label='Resume')
+            dot.edge('J', 'C', label='JD')
+
+            # Cover Letter → Output
+            dot.edge('C', 'CL', label='Cover Letter')
+
+            # Matcher → Recommendation Agent
+            dot.edge('M', 'X', label='Match Insights')
+
+            # Recommendation → Output
+            dot.edge('X', 'RC', label='Recommendation')
+
+            # Render graph
+            st.graphviz_chart(dot)
+
+        else:
+            st.warning("Graphviz not installed. "
+                       "Please install it with `pip install graphviz` and ensure Graphviz software is installed. "
+                       "Showing placeholder instead.")
+            st.image("https://via.placeholder.com/600x200?text=Agent+Dependency+Graph",
+                     caption="Agent Workflow (Install graphviz for full visualization)")
+
+
+def draw_input_layout():
+    global resume_text, jd_text
+    # --- Input Layout ---
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📄 Resume Input")
+        resume_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="resume_input")
+        resume_text = ""
+        if resume_method == "Upload PDF":
+            uploaded_resume = st.file_uploader("Upload Resume", type=["pdf"], key="resume_pdf")
+            if uploaded_resume:
+                resume_text = extract_text_from_pdf(uploaded_resume)
+        else:
+            resume_text = st.text_area("Paste Resume Text", height=250)
+
+        if resume_text:
+            with st.expander("🔍 Resume Preview"):
+                st.text_area("Extracted Resume Text", resume_text, height=150)
+    with col2:
+        st.subheader("📑 Job Description Input")
+        jd_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="jd_input")
+        jd_text = ""
+        if jd_method == "Upload PDF":
+            uploaded_jd = st.file_uploader("Upload JD", type=["pdf"], key="jd_pdf")
+            if uploaded_jd:
+                jd_text = extract_text_from_pdf(uploaded_jd)
+        else:
+            jd_text = st.text_area("Paste JD Text", height=250)
+
+        if jd_text:
+            with st.expander("🔍 JD Preview"):
+                st.text_area("Extracted JD Text", jd_text, height=150)
+
+
+draw_page_title()
 st.markdown("---")
-# Dependency Graph
-
-with st.expander("### 🔄 Agent Dependency Graph", expanded=False):
-    if GRAPHVIZ_AVAILABLE:  # Replace with GRAPHVIZ_AVAILABLE check
-        dot = graphviz.Digraph(comment="Resume-JD Matcher Agent Workflow")
-        dot.attr(rankdir='LR', size='10,8')
-
-        # === User Inputs ===
-        dot.node('U1', '👤 Resume Upload', shape='cylinder', color='orange', style='filled')
-        dot.node('U2', '👤 JD Upload', shape='cylinder', color='orange', style='filled')
-
-        # === Orchestrator ===
-        dot.node('O', '🧭 Orchestrator', shape='box', style='filled', color='lightblue')
-
-        # === Parsers ===
-        dot.node('R', '📄 Resume Parser', shape='component')
-        dot.node('J', '📑 JD Parser', shape='component')
-
-        # === Core Agents ===
-        dot.node('M', '🤝 Matcher', shape='box')
-        dot.node('E', '🛠️ Enhancer', shape='box')
-        dot.node('C', '✉️ Cover Letter', shape='box')
-        dot.node('X', '🧠 Recommendation', shape='box')
-
-        # === Final Outputs (clustered) ===
-        with dot.subgraph(name='cluster_outputs') as c:
-            c.attr(style='dashed', color='green', label='📦 Final Deliverables')
-            c.node_attr.update(style='filled', color='lightgreen')
-            c.node('MR', '📋 Match Report')
-            c.node('RE', '📄 Enhanced Resume')
-            c.node('CL', '✉️ Cover Letter')
-            c.node('RC', '🧠 Recommendation Summary')
-
-        # === Edges: Flow & Labels ===
-        # User → Orchestrator
-        dot.edge('U1', 'O', label='Resume')
-        dot.edge('U2', 'O', label='Job Description')
-
-        # Orchestrator → Parsers
-        dot.edge('O', 'R', label='Route Resume')
-        dot.edge('O', 'J', label='Route JD')
-
-        # Parsers → Matcher
-        dot.edge('R', 'M', label='Parsed Resume')
-        dot.edge('J', 'M', label='Parsed JD')
-
-        # Matcher → Match Report
-        dot.edge('M', 'MR', label='Match Report')
-
-        # Parsers → Enhancer
-        dot.edge('R', 'E', label='Resume')
-        dot.edge('J', 'E', label='JD')
-
-        # Enhancer → Enhanced Resume
-        dot.edge('E', 'RE', label='Improved Resume')
-
-        # Parsers → Cover Letter
-        dot.edge('R', 'C', label='Resume')
-        dot.edge('J', 'C', label='JD')
-
-        # Cover Letter → Output
-        dot.edge('C', 'CL', label='Cover Letter')
-
-        # Matcher → Recommendation Agent
-        dot.edge('M', 'X', label='Match Insights')
-
-        # Recommendation → Output
-        dot.edge('X', 'RC', label='Recommendation')
-
-        # Render graph
-        st.graphviz_chart(dot)
-
-    else:
-        st.warning("Graphviz not installed. "
-                   "Please install it with `pip install graphviz` and ensure Graphviz software is installed. "
-                   "Showing placeholder instead.")
-        st.image("https://via.placeholder.com/600x200?text=Agent+Dependency+Graph",
-                 caption="Agent Workflow (Install graphviz for full visualization)")
-
-# --- Input Layout ---
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📄 Resume Input")
-    resume_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="resume_input")
-    resume_text = ""
-    if resume_method == "Upload PDF":
-        uploaded_resume = st.file_uploader("Upload Resume", type=["pdf"], key="resume_pdf")
-        if uploaded_resume:
-            resume_text = extract_text_from_pdf(uploaded_resume)
-    else:
-        resume_text = st.text_area("Paste Resume Text", height=250)
-
-    if resume_text:
-        with st.expander("🔍 Resume Preview"):
-            st.text_area("Extracted Resume Text", resume_text, height=150)
-
-with col2:
-    st.subheader("📑 Job Description Input")
-    jd_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="jd_input")
-    jd_text = ""
-    if jd_method == "Upload PDF":
-        uploaded_jd = st.file_uploader("Upload JD", type=["pdf"], key="jd_pdf")
-        if uploaded_jd:
-            jd_text = extract_text_from_pdf(uploaded_jd)
-    else:
-        jd_text = st.text_area("Paste JD Text", height=250)
-
-    if jd_text:
-        with st.expander("🔍 JD Preview"):
-            st.text_area("Extracted JD Text", jd_text, height=150)
-
+draw_dependency_graph()
+draw_input_layout()
 st.markdown("---")
 
 # --- Action Buttons and Output ---
