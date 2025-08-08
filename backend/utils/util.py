@@ -1,6 +1,8 @@
 import json
 import os
 from typing import Dict
+import tempfile
+from fpdf import FPDF
 
 
 def save_json(data: Dict, output_directory: str, output_file_name: str) -> None:
@@ -28,3 +30,18 @@ def save_json(data: Dict, output_directory: str, output_file_name: str) -> None:
 
     except Exception as e:
         print(f"An error occurred while saving the JSON file: {e}")
+
+
+def export_to_pdf(itinerary_text):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    try:
+        for line in itinerary_text.split("\n"):
+            line = line.encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 10, line)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf.output(temp_file.name)
+        return temp_file.name
+    except Exception as e:
+        raise Exception(f"PDF generation failed: {str(e)}")

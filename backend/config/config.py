@@ -19,7 +19,7 @@ def read_config_file(filename: str = "config.ini") -> configparser.RawConfigPars
     config_ = configparser.RawConfigParser()
 
     try:
-        # Construct the file path using the current file's directory and the filename
+        # Construct the file path using the current file's directory and the travel_agent.py
         file_path = os.path.join(os.path.join(os.path.dirname(__file__)), filename)
         # Convert to a relative path
         relative_path = os.path.relpath(file_path, os.path.dirname(os.getcwd()))
