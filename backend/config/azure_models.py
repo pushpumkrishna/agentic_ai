@@ -10,28 +10,31 @@ class AzureOpenAIModels(AzureConfig):
         """
         super().__init__()
 
-    @staticmethod
-    def get_azure_embedding_model() -> AzureOpenAIEmbeddings:
-        """
-        Initializes and returns the Azure embedding model.
-
-        :return: OpenAIEmbeddings instance.
-        """
-        # Logging.info("Initializing Azure embedding model...")
-        try:
-            # azure_config = AzureConfig()
-            embedding_model = AzureOpenAIEmbeddings(
-                model=azure_config.get_gpt_model_embedding,
-                chunk_size=1,
-                openai_api_type=azure_config.get_azure_openai_api_type,
-                api_key=azure_config.get_azure_openai_key,
-                azure_deployment=azure_config.get_gpt_model_embedding_deployment_name,
-            )
-            logger.info("Azure embedding model initialized.")
-            return embedding_model
-        except KeyError as exception:
-            logger.error(f"Error: Missing key in config file: {exception}")
-            raise
+    # def get_azure_embedding_model(self) -> AzureOpenAIEmbeddings:
+    #     """
+    #     Initializes and returns the Azure embedding model.
+    #
+    #     :return: OpenAIEmbeddings instance.
+    #     """
+    #     # Logging.info("Initializing Azure embedding model...")
+    #     try:
+    #         # azure_config = AzureConfig()
+    #         embedding_model = AzureOpenAIEmbeddings(
+    #             azure_endpoint=self.get_azure_openai_base,
+    #             api_key=self.get_azure_openai_key,
+    #             api_version=self.get_azure_openai_api_version,
+    #             azure_deployment=self.get_gpt_model_embedding_deployment_name,
+    #             model=self.get_gpt_model_embedding,
+    #             # chunk_size=1,
+    #             # openai_api_type=self.get_azure_openai_api_type,
+    #             # api_key=self.get_azure_openai_key,
+    #             # azure_deployment=self.get_gpt_model_embedding_deployment_name,
+    #         )
+    #         logger.info("Azure embedding model initialized.")
+    #         return embedding_model
+    #     except KeyError as exception:
+    #         logger.error(f"Error: Missing key in config file: {exception}")
+    #         raise
 
     # @staticmethod
     def get_azure_model_35(self, temperature: float = 0.7) -> AzureChatOpenAI:
@@ -86,7 +89,7 @@ if __name__ == "__main__":
     try:
         # Initialize configuration and models
         azure_config = AzureOpenAIModels()
-        azure_embedding_model = azure_config.get_azure_embedding_model()
+        # azure_embedding_model = azure_config.get_azure_embedding_model()
         azure_model_35 = azure_config.get_azure_model_35()
         azure_model_4 = azure_config.get_azure_model_4()
 
