@@ -35,62 +35,63 @@
 
 import asyncio
 import logging
+
+from fastapi import FastAPI
 from fastmcp import FastMCP
 from fastmcp.client import Client  # Use unified client API :contentReference[oaicite:0]{index=0}
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from backend.UC7.src.langgraph_fast_api import RequestData, graph
 
-# ----- 1. Define your MCP server -----
-
-mcp = FastMCP("Local Test Server")
-
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """Tool: Add two numbers."""
-    return a + b
-
-@mcp.resource("config://version")
-def version() -> str:
-    """Resource: Returns current version."""
-    return "v2.0-test"
-
-@mcp.prompt()
-def greet(name: str) -> str:
-    """Prompt: Generate greeting message."""
-    return f"Hello, {name}!"
-
-# ----- 2. Define integrated client test -----
-
-async def run_client_tests():
-    async with Client(mcp) as client:
-        # List capabilities
-        tools = await client.list_tools()
-        resources = await client.list_resources()
-        prompts = await client.list_prompts()
-        logger.info("Tools: %s", tools)
-        logger.info("Resources: %s", resources)
-        logger.info("Prompts: %s", prompts)
-
-        # Test tool
-        add_result = await client.call_tool("add", {"a": 4, "b": 6})
-        logger.info("add(4, 6) → %s", add_result)
-
-        # Test resource
-        version_str = await client.read_resource("config://version")
-        logger.info("Version resource → %s", version_str)
-
-        # Test prompt
-        greet_result = await client.get_prompt("greet", {"name": "ChatGPT"})
-        logger.info("Greet prompt → %s", greet_result)
-
-# ----- 3. Main runner to start server and client -----
-
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-
-    # Use an in-memory transport by passing the server directly to the client
-    loop.run_until_complete(run_client_tests())
+#
+# # ----- 1. Define your MCP server -----
+#
+# mcp = FastMCP("Local Test Server")
+#
+# @mcp.tool()
+# def add(a: int, b: int) -> int:
+#     """Tool: Add two numbers."""
+#     return a + b
+#
+# @mcp.resource("config://version")
+# def version() -> str:
+#     """Resource: Returns current version."""
+#     return "v2.0-test"
+#
+# @mcp.prompt()
+# def greet(name: str) -> str:
+#     """Prompt: Generate greeting message."""
+#     return f"Hello, {name}!"
+#
+# # ----- 2. Define integrated client test -----
+#
+# async def run_client_tests():
+#     async with Client(mcp) as client:
+#         # List capabilities
+#         tools = await client.list_tools()
+#         resources = await client.list_resources()
+#         prompts = await client.list_prompts()
+#         logger.info("Tools: %s", tools)
+#         logger.info("Resources: %s", resources)
+#         logger.info("Prompts: %s", prompts)
+#
+#         # Test tool
+#         add_result = await client.call_tool("add", {"a": 4, "b": 6})
+#         logger.info("add(4, 6) → %s", add_result)
+#
+#         # Test resource
+#         version_str = await client.read_resource("config://version")
+#         logger.info("Version resource → %s", version_str)
+#
+#         # Test prompt
+#         greet_result = await client.get_prompt("greet", {"name": "ChatGPT"})
+#         logger.info("Greet prompt → %s", greet_result)
+#
+# # ----- 3. Main runner to start server and client -----
+#
+# if __name__ == "__main__":
+#     loop = asyncio.get_event_loop()
+#
+#     # Use an in-memory transport by passing the server directly to the client
+#     loop.run_until_complete(run_client_tests())
 
 
