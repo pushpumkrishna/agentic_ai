@@ -45,7 +45,7 @@ class RequestData(BaseModel):
 
 def answer_questions(state: dict) -> dict:
     logger.info(f"Received input: {state['user_input']}")
-    response = safe_invoke_llm(state['user_input'])
+    response = safe_invoke_llm(state["user_input"])
     logger.info("LLM response generated")
     return {"answer": response.content}
 
@@ -62,4 +62,3 @@ async def run_workflow(data: RequestData):
 """
 uvicorn backend.UC7.src.langgraph_fast_api:app --reload
 """
-

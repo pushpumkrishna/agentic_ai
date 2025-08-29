@@ -15,8 +15,10 @@ from ragas.metrics import (
 
 
 class ResultScore(BaseModel):
-    score: float = Field(None,
-                         description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.")
+    score: float = Field(
+        None,
+        description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.",
+    )
 
     def run_process_evaluation(self):
         # This prompt template clearly instructs the LLM on how to score the answer's correctness.
@@ -31,20 +33,26 @@ class ResultScore(BaseModel):
             Score from 0 to 1, where 1 is perfectly correct and 0 is completely incorrect.
         
             Score:
-            """
+            """,
         )
 
         # We build the evaluation chain by piping the prompt to the LLM with structured output.
-        correctness_chain = (correctness_prompt |
-                             AzureOpenAIModels().get_azure_model_4().with_structured_output(ResultScore))
+        correctness_chain = (
+            correctness_prompt
+            | AzureOpenAIModels()
+            .get_azure_model_4()
+            .with_structured_output(ResultScore)
+        )
 
         def evaluate_correctness(_question, _ground_truth, _generated_answer):
             """A helper function to run our custom correctness evaluation chain."""
-            result = correctness_chain.invoke({
-                "question": _question,
-                "ground_truth": _ground_truth,
-                "generated_answer": _generated_answer
-            })
+            result = correctness_chain.invoke(
+                {
+                    "question": _question,
+                    "ground_truth": _ground_truth,
+                    "generated_answer": _generated_answer,
+                }
+            )
             return result.score
 
         # Test the correctness chain with a partially correct answer.
@@ -75,19 +83,23 @@ class ResultScore(BaseModel):
             Context: 4.
             Generated Answer: 4.
             In this case, the context states '4', but it does not provide information to deduce the answer to 'What is 2+2?', so the score should be 0.
-            """
+            """,
         )
 
         # Build the faithfulness chain using the same structured LLM.
-        faithfulness_chain = faithfulness_prompt | self.llm.with_structured_output(ResultScore)
+        faithfulness_chain = faithfulness_prompt | self.llm.with_structured_output(
+            ResultScore
+        )
 
         def evaluate_faithfulness(question, context, generated_answer):
             """A helper function to run our custom faithfulness evaluation chain."""
-            result = faithfulness_chain.invoke({
-                "question": question,
-                "context": context,
-                "generated_answer": generated_answer
-            })
+            result = faithfulness_chain.invoke(
+                {
+                    "question": question,
+                    "context": context,
+                    "generated_answer": generated_answer,
+                }
+            )
             return result.score
 
         # Test the faithfulness chain. The answer is correct, but is it faithful?
@@ -100,11 +112,13 @@ class ResultScore(BaseModel):
 
         def evaluate_faithfulness(question, context, generated_answer):
             """A helper function to run our custom faithfulness evaluation chain."""
-            result = faithfulness_chain.invoke({
-                "question": question,
-                "context": context,
-                "generated_answer": generated_answer
-            })
+            result = faithfulness_chain.invoke(
+                {
+                    "question": question,
+                    "context": context,
+                    "generated_answer": generated_answer,
+                }
+            )
             return result.score
 
         # Test the faithfulness chain. The answer is correct, but is it faithful?
@@ -119,19 +133,17 @@ class ResultScore(BaseModel):
         test_case_correctness = LLMTestCase(
             input="What is the capital of Spain?",
             expected_output="Madrid is the capital of Spain.",
-            actual_output="MadriD."
+            actual_output="MadriD.",
         )
 
         test_case_faithfulness = LLMTestCase(
-            input="what is 3+3?",
-            actual_output="6",
-            retrieval_context=["6"]
+            input="what is 3+3?", actual_output="6", retrieval_context=["6"]
         )
 
         # The evaluate() function runs all test cases against all specified metrics
         evaluation_results = evaluate(
             test_cases=[test_case_correctness, test_case_faithfulness],
-            metrics=[GEval(name="Correctness", model="gpt-4o"), FaithfulnessMetric()]
+            metrics=[GEval(name="Correctness", model="gpt-4o"), FaithfulnessMetric()],
         )
 
         print(evaluation_results)
@@ -147,8 +159,8 @@ class ResultScore(BaseModel):
             actual_output="The Eiffel Tower is located at Rue Rabelais in Paris.",
             references=[
                 "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France",
-                "Gustave Eiffel died in his appartment at Rue Rabelais in Paris."
-            ]
+                "Gustave Eiffel died in his appartment at Rue Rabelais in Paris.",
+            ],
         )
 
         result = evaluator.evaluate(eval_samples=[unfaithful_sample]).evaluations[0]
@@ -177,21 +189,25 @@ class ResultScore(BaseModel):
 
         # The context retrieved by our RAG system for each question
         retrieved_documents = [
-            ["A massive, three-headed dog was guarding a trapdoor. Hagrid mentioned its name was Fluffy."],
             [
-                "First years are not allowed brooms, but Professor McGonagall, head of Gryffindor, made an exception for Harry."],
+                "A massive, three-headed dog was guarding a trapdoor. Hagrid mentioned its name was Fluffy."
+            ],
             [
-                "The Sorting Hat muttered in Harry's ear, 'You could be great, you know, it's all here in your head, and Slytherin will help you on the way to greatness...'"],
+                "First years are not allowed brooms, but Professor McGonagall, head of Gryffindor, made an exception for Harry."
+            ],
+            [
+                "The Sorting Hat muttered in Harry's ear, 'You could be great, you know, it's all here in your head, and Slytherin will help you on the way to greatness...'"
+            ],
         ]
 
         # You will need to install ragas and datasets: pip install ragas datasets
 
         # 2. Structure the data into a Hugging Face Dataset object
         data_samples = {
-            'question': questions,
-            'answer': generated_answers,
-            'contexts': retrieved_documents,
-            'ground_truth': ground_truth_answers
+            "question": questions,
+            "answer": generated_answers,
+            "contexts": retrieved_documents,
+            "ground_truth": ground_truth_answers,
         }
 
         dataset = Dataset.from_dict(data_samples)
@@ -204,10 +220,7 @@ class ResultScore(BaseModel):
         ]
 
         # 4. Run the evaluation
-        result = evaluate(
-            dataset=dataset,
-            metrics=metrics
-        )
+        result = evaluate(dataset=dataset, metrics=metrics)
 
         # 5. Display the results in a clean table format
         results_df = result.to_pandas()

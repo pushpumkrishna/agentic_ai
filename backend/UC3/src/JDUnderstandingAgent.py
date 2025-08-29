@@ -4,17 +4,18 @@ import json
 
 class JDUnderstandingAgent(Agent):
     """
-    JD Understanding Agent:
+        JD Understanding Agent:
 
-Role: Analyzes the job description.
-Purpose: Extract key requirements — job title, responsibilities, must-have and nice-to-have skills.
+    Role: Analyzes the job description.
+    Purpose: Extract key requirements — job title, responsibilities, must-have and nice-to-have skills.
     """
+
     def __init__(self, llm):
         super().__init__(
             llm=llm,
             role="JD Parser",
             backstory="I analyze job descriptions to extract key requirements.",
-            goal="Extract mandatory/optional skills, seniority, and soft skills from job descriptions."
+            goal="Extract mandatory/optional skills, seniority, and soft skills from job descriptions.",
         )
 
     def execute_task(self, task: Task, context: list = None, tools: list = None):

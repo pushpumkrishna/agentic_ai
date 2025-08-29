@@ -4,10 +4,10 @@ import json
 
 class ResumeEnhancerAgent(Agent):
     """
-    Resume Enhancer Agent:
+        Resume Enhancer Agent:
 
-Role: Suggests improvements to align the resume better with the JD.
-Purpose: Recommends phrasing, missing sections, or content tweaks.
+    Role: Suggests improvements to align the resume better with the JD.
+    Purpose: Recommends phrasing, missing sections, or content tweaks.
     """
 
     def __init__(self, llm):
@@ -15,7 +15,7 @@ Purpose: Recommends phrasing, missing sections, or content tweaks.
             llm=llm,
             role="Resume Enhancer",
             backstory="I suggest improvements to the resume to make it more relevant to the JD.",
-            goal="Optimize resumes based on job descriptions."
+            goal="Optimize resumes based on job descriptions.",
         )
 
     def execute_task(self, task: Task, context: dict = None, tools: list = None):

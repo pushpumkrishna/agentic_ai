@@ -4,17 +4,18 @@ import json
 
 class MatchingAgent(Agent):
     """
-    Matching Agent:
+        Matching Agent:
 
-Role: Compares resume content with the JD.
-Purpose: Calculates a match score, highlights matched/missing skills, flags gaps or mismatches.
+    Role: Compares resume content with the JD.
+    Purpose: Calculates a match score, highlights matched/missing skills, flags gaps or mismatches.
     """
+
     def __init__(self, llm):
         super().__init__(
             llm=llm,
             role="Candidate-Role Matcher",
             backstory="I match candidates to roles based on skills and experience.",
-            goal="Compute a match score between resume and job description."
+            goal="Compute a match score between resume and job description.",
         )
 
     def execute_task(self, task: Task, context: dict = None, tools: list = None):

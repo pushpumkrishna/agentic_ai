@@ -9,6 +9,7 @@ import json
 
 try:
     import graphviz
+
     GRAPHVIZ_AVAILABLE = True
     print("Imported !!")
 except ImportError:
@@ -31,12 +32,13 @@ class ResumeParsingAgent(Agent):
     Role: Extracts structured details from resumes (name, skills, education, work history).
     Purpose: Convert free-form content into clean, structured data.
     """
+
     def __init__(self, llm):
         super().__init__(
             llm=llm,
             role="Resume Parser",
             backstory="I extract structured data from resumes with high accuracy.",
-            goal="Parse resumes to extract skills, experience, education, certifications, and career gaps."
+            goal="Parse resumes to extract skills, experience, education, certifications, and career gaps.",
         )
 
     def execute_task(self, task: Task, context: list = None, tools: list = None):

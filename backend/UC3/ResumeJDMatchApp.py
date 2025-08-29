@@ -16,6 +16,7 @@ load_dotenv()
 
 try:
     import graphviz
+
     GRAPHVIZ_AVAILABLE = True
 except ImportError:
     GRAPHVIZ_AVAILABLE = False
@@ -31,10 +32,13 @@ def extract_text_from_pdf(uploaded_file):
 
 # ------------------- Streamlit UI -------------------
 
+
 def draw_page_title():
     st.set_page_config(page_title="🧠 Resume-JD Matcher", layout="wide")
     st.markdown("# 🧠 GenAI Resume vs Job Description Matcher")
-    st.markdown("Use AI agents to evaluate how well a candidate’s resume matches a job description.")
+    st.markdown(
+        "Use AI agents to evaluate how well a candidate’s resume matches a job description."
+    )
     with st.expander("ℹ️ Instructions", expanded=False):
         st.markdown("""
         1. Upload or paste both a **Resume** and a **Job Description**.
@@ -51,79 +55,93 @@ def draw_dependency_graph():
     with st.expander("### 🔄 Agent Dependency Graph", expanded=False):
         if GRAPHVIZ_AVAILABLE:  # Replace with GRAPHVIZ_AVAILABLE check
             dot = graphviz.Digraph(comment="Resume-JD Matcher Agent Workflow")
-            dot.attr(rankdir='LR', size='10,8')
+            dot.attr(rankdir="LR", size="10,8")
 
             # === User Inputs ===
-            dot.node('U1', '👤 Resume Upload', shape='cylinder', color='orange', style='filled')
-            dot.node('U2', '👤 JD Upload', shape='cylinder', color='orange', style='filled')
+            dot.node(
+                "U1",
+                "👤 Resume Upload",
+                shape="cylinder",
+                color="orange",
+                style="filled",
+            )
+            dot.node(
+                "U2", "👤 JD Upload", shape="cylinder", color="orange", style="filled"
+            )
 
             # === Orchestrator ===
-            dot.node('O', '🧭 Orchestrator', shape='box', style='filled', color='lightblue')
+            dot.node(
+                "O", "🧭 Orchestrator", shape="box", style="filled", color="lightblue"
+            )
 
             # === Parsers ===
-            dot.node('R', '📄 Resume Parser', shape='component')
-            dot.node('J', '📑 JD Parser', shape='component')
+            dot.node("R", "📄 Resume Parser", shape="component")
+            dot.node("J", "📑 JD Parser", shape="component")
 
             # === Core Agents ===
-            dot.node('M', '🤝 Matcher', shape='box')
-            dot.node('E', '🛠️ Enhancer', shape='box')
-            dot.node('C', '✉️ Cover Letter', shape='box')
-            dot.node('X', '🧠 Recommendation', shape='box')
+            dot.node("M", "🤝 Matcher", shape="box")
+            dot.node("E", "🛠️ Enhancer", shape="box")
+            dot.node("C", "✉️ Cover Letter", shape="box")
+            dot.node("X", "🧠 Recommendation", shape="box")
 
             # === Final Outputs (clustered) ===
-            with dot.subgraph(name='cluster_outputs') as c:
-                c.attr(style='dashed', color='green', label='📦 Final Deliverables')
-                c.node_attr.update(style='filled', color='lightgreen')
-                c.node('MR', '📋 Match Report')
-                c.node('RE', '📄 Enhanced Resume')
-                c.node('CL', '✉️ Cover Letter')
-                c.node('RC', '🧠 Recommendation Summary')
+            with dot.subgraph(name="cluster_outputs") as c:
+                c.attr(style="dashed", color="green", label="📦 Final Deliverables")
+                c.node_attr.update(style="filled", color="lightgreen")
+                c.node("MR", "📋 Match Report")
+                c.node("RE", "📄 Enhanced Resume")
+                c.node("CL", "✉️ Cover Letter")
+                c.node("RC", "🧠 Recommendation Summary")
 
             # === Edges: Flow & Labels ===
             # User → Orchestrator
-            dot.edge('U1', 'O', label='Resume')
-            dot.edge('U2', 'O', label='Job Description')
+            dot.edge("U1", "O", label="Resume")
+            dot.edge("U2", "O", label="Job Description")
 
             # Orchestrator → Parsers
-            dot.edge('O', 'R', label='Route Resume')
-            dot.edge('O', 'J', label='Route JD')
+            dot.edge("O", "R", label="Route Resume")
+            dot.edge("O", "J", label="Route JD")
 
             # Parsers → Matcher
-            dot.edge('R', 'M', label='Parsed Resume')
-            dot.edge('J', 'M', label='Parsed JD')
+            dot.edge("R", "M", label="Parsed Resume")
+            dot.edge("J", "M", label="Parsed JD")
 
             # Matcher → Match Report
-            dot.edge('M', 'MR', label='Match Report')
+            dot.edge("M", "MR", label="Match Report")
 
             # Parsers → Enhancer
-            dot.edge('R', 'E', label='Resume')
-            dot.edge('J', 'E', label='JD')
+            dot.edge("R", "E", label="Resume")
+            dot.edge("J", "E", label="JD")
 
             # Enhancer → Enhanced Resume
-            dot.edge('E', 'RE', label='Improved Resume')
+            dot.edge("E", "RE", label="Improved Resume")
 
             # Parsers → Cover Letter
-            dot.edge('R', 'C', label='Resume')
-            dot.edge('J', 'C', label='JD')
+            dot.edge("R", "C", label="Resume")
+            dot.edge("J", "C", label="JD")
 
             # Cover Letter → Output
-            dot.edge('C', 'CL', label='Cover Letter')
+            dot.edge("C", "CL", label="Cover Letter")
 
             # Matcher → Recommendation Agent
-            dot.edge('M', 'X', label='Match Insights')
+            dot.edge("M", "X", label="Match Insights")
 
             # Recommendation → Output
-            dot.edge('X', 'RC', label='Recommendation')
+            dot.edge("X", "RC", label="Recommendation")
 
             # Render graph
             st.graphviz_chart(dot)
 
         else:
-            st.warning("Graphviz not installed. "
-                       "Please install it with `pip install graphviz` and ensure Graphviz software is installed. "
-                       "Showing placeholder instead.")
-            st.image("https://via.placeholder.com/600x200?text=Agent+Dependency+Graph",
-                     caption="Agent Workflow (Install graphviz for full visualization)")
+            st.warning(
+                "Graphviz not installed. "
+                "Please install it with `pip install graphviz` and ensure Graphviz software is installed. "
+                "Showing placeholder instead."
+            )
+            st.image(
+                "https://via.placeholder.com/600x200?text=Agent+Dependency+Graph",
+                caption="Agent Workflow (Install graphviz for full visualization)",
+            )
 
 
 def draw_input_layout():
@@ -132,10 +150,14 @@ def draw_input_layout():
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("📄 Resume Input")
-        resume_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="resume_input")
+        resume_method = st.radio(
+            "Choose input method:", ["Upload PDF", "Paste Text"], key="resume_input"
+        )
         resume_text = ""
         if resume_method == "Upload PDF":
-            uploaded_resume = st.file_uploader("Upload Resume", type=["pdf"], key="resume_pdf")
+            uploaded_resume = st.file_uploader(
+                "Upload Resume", type=["pdf"], key="resume_pdf"
+            )
             if uploaded_resume:
                 resume_text = extract_text_from_pdf(uploaded_resume)
         else:
@@ -146,7 +168,9 @@ def draw_input_layout():
                 st.text_area("Extracted Resume Text", resume_text, height=150)
     with col2:
         st.subheader("📑 Job Description Input")
-        jd_method = st.radio("Choose input method:", ["Upload PDF", "Paste Text"], key="jd_input")
+        jd_method = st.radio(
+            "Choose input method:", ["Upload PDF", "Paste Text"], key="jd_input"
+        )
         jd_text = ""
         if jd_method == "Upload PDF":
             uploaded_jd = st.file_uploader("Upload JD", type=["pdf"], key="jd_pdf")
@@ -185,34 +209,32 @@ if resume_text and jd_text:
     resume_task = Task(
         description=resume_text,
         expected_output="Structured resume data",
-        agent=resume_parser
+        agent=resume_parser,
     )
 
     jd_task = Task(
-        description=jd_text,
-        expected_output="Structured JD data",
-        agent=jd_parser
+        description=jd_text, expected_output="Structured JD data", agent=jd_parser
     )
 
     matching_task = Task(
         description="Match resume to JD.",
         expected_output="Match score and insights.",
         agent=matcher,
-        context=[resume_task, jd_task]
+        context=[resume_task, jd_task],
     )
 
     resume_enhancer_task = Task(
         description="Optimize resumes based on job descriptions.",
         expected_output="Readable text report with improvements to the resume to make it more relevant to the JD.",
         agent=resume_enhancer,
-        context=[resume_task, jd_task]
+        context=[resume_task, jd_task],
     )
 
     cover_letter_task = Task(
         description="Generate a cover letter based on the resume and job description.",
         expected_output="Readable text cover letter tailored to the job description.",
         agent=cover_letter_generator,
-        context=[resume_task, jd_task]
+        context=[resume_task, jd_task],
     )
 
     # Create a placeholder for the output
@@ -232,7 +254,7 @@ if resume_text and jd_text:
                             name="Resume-JD Matcher Crew",
                             description="A team to analyze resumes and match them to job descriptions.",
                             verbose=True,
-                            process=Process.sequential
+                            process=Process.sequential,
                         )
                         result = crew.kickoff()
                         st.success("✅ Matching Complete")
@@ -257,7 +279,7 @@ if resume_text and jd_text:
                             name="Resume Enhancer Crew",
                             description="A team to suggest resume improvements.",
                             verbose=True,
-                            process=Process.sequential
+                            process=Process.sequential,
                         )
                         result = crew.kickoff()
                         st.success("✅ Resume Enhancement Complete")
@@ -282,7 +304,7 @@ if resume_text and jd_text:
                             name="Cover Letter Crew",
                             description="A team to generate a cover letter.",
                             verbose=True,
-                            process=Process.sequential
+                            process=Process.sequential,
                         )
                         result = crew.kickoff()
                         st.success("✅ Cover Letter Generation Complete")

@@ -23,7 +23,6 @@ class IsDistilledContentGroundedOnContent(BaseModel):
 
 
 class DistilledContent:
-
     def is_distilled_content_grounded_on_content(self, state):
         """
         Determines if the distilled content is grounded on the original context.
@@ -46,7 +45,9 @@ class DistilledContent:
         """
 
         pprint("--------------------")
-        print("Determining if the distilled content is grounded on the original context...")
+        print(
+            "Determining if the distilled content is grounded on the original context..."
+        )
 
         # JSON parser for the output schema
         is_distilled_content_grounded_on_content_json_parser = JsonOutputParser(
@@ -67,14 +68,14 @@ class DistilledContent:
             temperature=0,
             model_name="llama3-70b-8192",
             groq_api_key=groq_api_key,
-            max_tokens=4000
+            max_tokens=4000,
         )
 
         # Compose the chain: prompt -> LLM -> output parser
         is_distilled_content_grounded_on_content_chain = (
-                is_distilled_content_grounded_on_content_prompt
-                | is_distilled_content_grounded_on_content_llm
-                | is_distilled_content_grounded_on_content_json_parser
+            is_distilled_content_grounded_on_content_prompt
+            | is_distilled_content_grounded_on_content_llm
+            | is_distilled_content_grounded_on_content_json_parser
         )
 
         distilled_content = state["relevant_context"]
@@ -82,7 +83,7 @@ class DistilledContent:
 
         input_data = {
             "distilled_content": distilled_content,
-            "original_context": original_context
+            "original_context": original_context,
         }
 
         # Invoke the LLM chain to check grounding

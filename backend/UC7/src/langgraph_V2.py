@@ -301,8 +301,10 @@ except Exception as e:
 """
 
 print("\n🎨 Testing CREATIVE input...\n")
-user_input = ("The wind whispered secrets through the trees as the moon cast shadows like forgotten "
-              "dreams across the field.")
+user_input = (
+    "The wind whispered secrets through the trees as the moon cast shadows like forgotten "
+    "dreams across the field."
+)
 
 try:
     result = conditional_app.invoke({"user_input": user_input})

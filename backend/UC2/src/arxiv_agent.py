@@ -7,9 +7,10 @@ import ssl
 import datetime
 import time
 import warnings
+
 warnings.filterwarnings("ignore")
 # Disable SSL verification globally (for dev only)
-ssl._create_default_https_context = ssl._create_unverified_context      # ignore
+ssl._create_default_https_context = ssl._create_unverified_context  # ignore
 
 
 class FetchArxivPapersInput(BaseModel):

@@ -140,13 +140,15 @@ with st.form("travel_form"):
     submit_btn = st.form_submit_button("Generate Itinerary")
 
 if submit_btn:
-    preferences_text = (f"Destination: {destination}\n"
-                        f"Month: {month}\n"
-                        f"Duration: {duration} days\n"
-                        f"People: {num_people}\n"
-                        f"Type: {holiday_type}\n"
-                        f"Budget: {budget_type}\n"
-                        f"Comments: {comments}")
+    preferences_text = (
+        f"Destination: {destination}\n"
+        f"Month: {month}\n"
+        f"Duration: {duration} days\n"
+        f"People: {num_people}\n"
+        f"Type: {holiday_type}\n"
+        f"Budget: {budget_type}\n"
+        f"Comments: {comments}"
+    )
     preferences = {
         "destination": destination,
         "month": month,

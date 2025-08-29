@@ -7,7 +7,7 @@ def generate_itinerary(state):
     llm = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
     prompt = f"""
     Using the following preferences, create a detailed itinerary:
-    {json.dumps(state['preferences'], indent=2)}
+    {json.dumps(state["preferences"], indent=2)}
 
     Include sections for each day, dining options, and downtime.
     """
