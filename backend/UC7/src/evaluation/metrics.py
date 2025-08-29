@@ -3,13 +3,15 @@ from langchain_core.prompts import PromptTemplate
 from backend.config.azure_models import AzureOpenAIModels
 from pydantic import Field, BaseModel
 
-def evaluate_faithfulness(question, context, generated_answer):
 
+def evaluate_faithfulness(question, context, generated_answer):
     """A helper function to run our custom faithfulness evaluation chain."""
 
     class ResultScore(BaseModel):
-        score: float = Field(...,
-                             description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.")
+        score: float = Field(
+            ...,
+            description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.",
+        )
 
     # The prompt template for faithfulness includes several examples (few-shot prompting)
     # to make the instructions to the judge LLM crystal clear.
@@ -31,18 +33,19 @@ def evaluate_faithfulness(question, context, generated_answer):
         Context: 4.
         Generated Answer: 4.
         In this case, the context states '4', but it does not provide information to deduce the answer to 'What is 2+2?', so the score should be 0.
-        """
+        """,
     )
 
     # Build the faithfulness chain using the same structured LLM.
-    faithfulness_chain = (faithfulness_prompt |
-                          AzureOpenAIModels().get_azure_model_4().with_structured_output(ResultScore))
-    result = faithfulness_chain.invoke({
-        "question": question,
-        "context": context,
-        "generated_answer": generated_answer
-    })
+    faithfulness_chain = (
+        faithfulness_prompt
+        | AzureOpenAIModels().get_azure_model_4().with_structured_output(ResultScore)
+    )
+    result = faithfulness_chain.invoke(
+        {"question": question, "context": context, "generated_answer": generated_answer}
+    )
     return result.score
+
 
 # Test the faithfulness chain. The answer is correct, but is it faithful?
 question = "what is 3+3?"

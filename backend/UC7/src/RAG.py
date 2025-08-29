@@ -8,7 +8,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, PromptTemplate
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    FewShotChatMessagePromptTemplate,
+    PromptTemplate,
+)
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda, Runnable
 from langchain_core.stores import InMemoryByteStore
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -29,11 +33,13 @@ warnings.filterwarnings("ignore")
 
 
 class RAGChainBuilder:
-    def __init__(self,
-                 query: str = " ",
-                 chunk_size: int = 1000,
-                 chunk_overlap: int = 200,
-                 persist_dir: str = "./chroma_db"):
+    def __init__(
+        self,
+        query: str = " ",
+        chunk_size: int = 1000,
+        chunk_overlap: int = 200,
+        persist_dir: str = "./chroma_db",
+    ):
         """
         Initializes the RAGChainBuilder with model and chunking parameters.
 
@@ -47,7 +53,7 @@ class RAGChainBuilder:
             model_name="C:/Users/703395858/PycharmProjects/agentic_ai/backend/models/all-MiniLM-L6-v2",
             model_kwargs={
                 "device": "cpu",
-            }
+            },
         )
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
@@ -79,7 +85,6 @@ class RAGChainBuilder:
         return "\n\n".join(doc.page_content for doc in docs)
 
     def _get_local_retriever(self):
-
         logger.info("Splitting documents into chunks...")
         splits = self.text_splitter.split_documents(self.document)
 
@@ -87,7 +92,7 @@ class RAGChainBuilder:
         vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=self.embedding_model,
-            persist_directory=self.persist_dir
+            persist_directory=self.persist_dir,
         )
         return vectorstore.as_retriever()
 
@@ -96,15 +101,17 @@ class RAGChainBuilder:
 
         prompt = hub.pull("rlm/rag-prompt")
         rag_chain = (
-                {
-                    # only take the "question" field and send it to retriever
-                    "context": itemgetter("question") | self.retriever | RunnableLambda(self.format_docs),
-                    "question": itemgetter("question")
-                }
-                # {"context": self.retriever | RunnableLambda(self.format_docs), "question": RunnablePassthrough()}
-                | prompt
-                | self.llm
-                | StrOutputParser()
+            {
+                # only take the "question" field and send it to retriever
+                "context": itemgetter("question")
+                | self.retriever
+                | RunnableLambda(self.format_docs),
+                "question": itemgetter("question"),
+            }
+            # {"context": self.retriever | RunnableLambda(self.format_docs), "question": RunnablePassthrough()}
+            | prompt
+            | self.llm
+            | StrOutputParser()
         )
 
         final_response = rag_chain.invoke({"question": self.query})
@@ -113,14 +120,14 @@ class RAGChainBuilder:
     def process_and_create_retriever_v2_generate_questions(self):
         # Split the documents into chunks
         text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-            chunk_size=300,
-            chunk_overlap=50
+            chunk_size=300, chunk_overlap=50
         )
         splits = text_splitter.split_documents(self.document)
 
         # Index the chunks in a Chroma vector store
-        vectorstore = Chroma.from_documents(documents=splits,
-                                            embedding=self.embedding_model)
+        vectorstore = Chroma.from_documents(
+            documents=splits, embedding=self.embedding_model
+        )
 
         retriever = vectorstore.as_retriever()
 
@@ -133,15 +140,17 @@ class RAGChainBuilder:
         prompt_perspectives = ChatPromptTemplate.from_template(template)
 
         rag_chain = (
-                {"question": RunnablePassthrough()}
-                | prompt_perspectives
-                | self.llm
-                | StrOutputParser()
-                | (lambda x: x.split("\n"))
+            {"question": RunnablePassthrough()}
+            | prompt_perspectives
+            | self.llm
+            | StrOutputParser()
+            | (lambda x: x.split("\n"))
         )
 
         final_response = rag_chain.invoke({"question": self.query})
-        logger.info(f"process_and_create_retriever_v2_generate_questions response: {final_response}")
+        logger.info(
+            f"process_and_create_retriever_v2_generate_questions response: {final_response}"
+        )
 
         """
         The LLM has rephrased our original question using different keywords like “break down complex tasks”, 
@@ -150,7 +159,7 @@ class RAGChainBuilder:
         """
 
         def get_unique_union(documents: list[list]):
-            """ A simple function to get the unique union of retrieved documents """
+            """A simple function to get the unique union of retrieved documents"""
             # Flatten the list of lists and convert each Document to a string for uniqueness
             flattened_docs = [dumps(doc) for sublist in documents for doc in sublist]
             unique_docs = list(set(flattened_docs))
@@ -173,18 +182,20 @@ class RAGChainBuilder:
         prompt = ChatPromptTemplate.from_template(template)
 
         final_rag_chain = (
-                {"context": retrieval_chain, "question": itemgetter("question")}
-                | prompt
-                | self.llm
-                | StrOutputParser()
+            {"context": retrieval_chain, "question": itemgetter("question")}
+            | prompt
+            | self.llm
+            | StrOutputParser()
         )
 
         final_rag_chain.invoke({"question": self.query})
-        logger.info(f"process_and_create_retriever_v2_generate_questions final response: {final_response}")
+        logger.info(
+            f"process_and_create_retriever_v2_generate_questions final response: {final_response}"
+        )
 
     @staticmethod
     def reciprocal_rank_fusion_re_ranking(results: list[list], k=60) -> List:
-        """ Reciprocal Rank Fusion that intelligently combines multiple ranked lists """
+        """Reciprocal Rank Fusion that intelligently combines multiple ranked lists"""
         fused_scores = {}
 
         # Iterate through each list of ranked documents
@@ -199,7 +210,9 @@ class RAGChainBuilder:
         # Sort documents by their new fused scores in descending order
         reranked_results = [
             (loads(doc), score)
-            for doc, score in sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
+            for doc, score in sorted(
+                fused_scores.items(), key=lambda x: x[1], reverse=True
+            )
         ]
         return reranked_results
 
@@ -211,16 +224,16 @@ class RAGChainBuilder:
         prompt_rag_fusion = ChatPromptTemplate.from_template(template)
 
         generate_queries = (
-                prompt_rag_fusion
-                | self.llm
-                | StrOutputParser()
-                | (lambda x: x.split("\n"))
+            prompt_rag_fusion | self.llm | StrOutputParser() | (lambda x: x.split("\n"))
         )
 
         # Build the new retrieval chain with RRF
         # noinspection PyTypeChecker
-        retrieval_chain_rag_fusion = (generate_queries | Runnable.map(self.retriever)
-                                      | self.reciprocal_rank_fusion_re_ranking)
+        retrieval_chain_rag_fusion = (
+            generate_queries
+            | Runnable.map(self.retriever)
+            | self.reciprocal_rank_fusion_re_ranking
+        )
         docs = retrieval_chain_rag_fusion.invoke({"question": self.query})
         logger.info(f"Total re-ranked documents retrieved: {len(docs)}")
 
@@ -242,14 +255,16 @@ class RAGChainBuilder:
 
         # Chain to generate sub-questions
         generate_queries_decomposition = (
-                prompt_decomposition
-                | self.llm
-                | StrOutputParser()
-                | (lambda x: x.split("\n"))
+            prompt_decomposition
+            | self.llm
+            | StrOutputParser()
+            | (lambda x: x.split("\n"))
         )
 
         # Generate and print the sub-questions
-        question = "What are the main components of an LLM-powered autonomous agent system?"
+        question = (
+            "What are the main components of an LLM-powered autonomous agent system?"
+        )
         sub_questions = generate_queries_decomposition.invoke({"question": question})
         print(sub_questions)
 
@@ -264,14 +279,19 @@ class RAGChainBuilder:
 
             # Use our standard RAG chain to answer the sub-question
             answer = (prompt_rag | self.llm | StrOutputParser()).invoke(
-                {"context": retrieved_docs, "question": sub_question})
+                {"context": retrieved_docs, "question": sub_question}
+            )
             rag_results.append(answer)
 
         def format_qa_pairs(questions, answers):
             """Format Q and A pairs"""
             formatted_string = ""
-            for i, (one_question, one_answer) in enumerate(zip(questions, answers), start=1):
-                formatted_string += f"Question {i}: {one_question}\nAnswer {i}: {one_answer}\n\n"
+            for i, (one_question, one_answer) in enumerate(
+                zip(questions, answers), start=1
+            ):
+                formatted_string += (
+                    f"Question {i}: {one_question}\nAnswer {i}: {one_answer}\n\n"
+                )
             return formatted_string.strip()
 
         # Format the Q&A pairs into a single context string
@@ -286,11 +306,7 @@ class RAGChainBuilder:
         """
         prompt = ChatPromptTemplate.from_template(template)
 
-        final_rag_chain = (
-                prompt
-                | self.llm
-                | StrOutputParser()
-        )
+        final_rag_chain = prompt | self.llm | StrOutputParser()
 
         final_rag_chain.invoke({"context": context, "question": question})
 
@@ -318,10 +334,12 @@ class RAGChainBuilder:
         ]
 
         # Define how each example is formatted in the prompt
-        example_prompt = ChatPromptTemplate.from_messages([
-            ("human", "{input}"),  # User input
-            ("ai", "{output}")  # Model's response
-        ])
+        example_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("human", "{input}"),  # User input
+                ("ai", "{output}"),  # Model's response
+            ]
+        )
 
         # Wrap the few-shot examples into a reusable prompt template
         few_shot_prompt = FewShotChatMessagePromptTemplate(
@@ -330,13 +348,17 @@ class RAGChainBuilder:
         )
 
         # Full prompt includes system instruction, few-shot examples, and the user question
-        prompt = ChatPromptTemplate.from_messages([
-            ("system",
-             "You are an expert at world knowledge. Your task is to step back and paraphrase a question "
-             "to a more generic step-back question, which is easier to answer. Here are a few examples:"),
-            few_shot_prompt,
-            ("user", "{question}"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are an expert at world knowledge. Your task is to step back and paraphrase a question "
+                    "to a more generic step-back question, which is easier to answer. Here are a few examples:",
+                ),
+                few_shot_prompt,
+                ("user", "{question}"),
+            ]
+        )
 
         # Define a chain to generate step-back questions using the prompt and an OpenAI model
         generate_queries_step_back = prompt | self.llm | StrOutputParser()
@@ -370,23 +392,23 @@ class RAGChainBuilder:
 
         # The full chain
         chain = (
-                {
-                    # Retrieve context using the normal question
-                    "normal_context": RunnableLambda(lambda x: x["question"]) | self.retriever,
-                    # Retrieve context using the step-back question
-                    "step_back_context": generate_queries_step_back | self.retriever,
-                    # Pass on the original question
-                    "question": lambda x: x["question"],
-                }
-                | response_prompt
-                | self.llm
-                | StrOutputParser()
+            {
+                # Retrieve context using the normal question
+                "normal_context": RunnableLambda(lambda x: x["question"])
+                | self.retriever,
+                # Retrieve context using the step-back question
+                "step_back_context": generate_queries_step_back | self.retriever,
+                # Pass on the original question
+                "question": lambda x: x["question"],
+            }
+            | response_prompt
+            | self.llm
+            | StrOutputParser()
         )
 
         chain.invoke({"question": self.query})
 
     def process_hypothetical_document_embeddings(self):
-
         # HyDE prompt
         template = """Please write a scientific paper passage to answer the question
         Question: {question}
@@ -394,14 +416,12 @@ class RAGChainBuilder:
         prompt_hyde = ChatPromptTemplate.from_template(template)
 
         # Chain to generate the hypothetical document
-        generate_docs_for_retrieval = (
-                prompt_hyde
-                | self.llm
-                | StrOutputParser()
-        )
+        generate_docs_for_retrieval = prompt_hyde | self.llm | StrOutputParser()
 
         # Generate and print the hypothetical document
-        hypothetical_document = generate_docs_for_retrieval.invoke({"question": self.query})
+        hypothetical_document = generate_docs_for_retrieval.invoke(
+            {"question": self.query}
+        )
         print(hypothetical_document)
 
         """
@@ -413,14 +433,16 @@ class RAGChainBuilder:
         retrieved_docs = retrieval_chain.invoke({"question": self.query})
 
         final_rag_chain = (
-                {"context": retrieval_chain, "question": itemgetter("question")}
-                | prompt_hyde
-                | self.llm
-                | StrOutputParser()
+            {"context": retrieval_chain, "question": itemgetter("question")}
+            | prompt_hyde
+            | self.llm
+            | StrOutputParser()
         )
 
         # Use our standard RAG chain to generate the final answer from the retrieved context
-        response = final_rag_chain.invoke({"context": retrieved_docs, "question": self.query})
+        response = final_rag_chain.invoke(
+            {"context": retrieved_docs, "question": self.query}
+        )
         print(response)
 
     def process_routing_n_query_construction(self):
@@ -469,17 +491,19 @@ class RAGChainBuilder:
             # 4. Select the most similar prompt template
             chosen_prompt = prompt_templates[most_similar_index]
 
-            print(f"DEBUG: Using {'MATH' if most_similar_index == 1 else 'PHYSICS'} template.")
+            print(
+                f"DEBUG: Using {'MATH' if most_similar_index == 1 else 'PHYSICS'} template."
+            )
 
             # 5. Return the chosen prompt object
             return PromptTemplate.from_template(chosen_prompt)
 
         # The final chain that combines the router with the LLM
         chain = (
-                {"query": RunnablePassthrough()}
-                | RunnableLambda(prompt_router)  # Dynamically select the prompt
-                | self.llm
-                | StrOutputParser()
+            {"query": RunnablePassthrough()}
+            | RunnableLambda(prompt_router)  # Dynamically select the prompt
+            | self.llm
+            | StrOutputParser()
         )
 
         # Ask a physics question
@@ -519,14 +543,16 @@ class RAGChainBuilder:
 
         # The chain for generating summaries
         summary_chain = (
-                # Extract the page_content from the document object
-                {"doc": lambda x: x.page_content}
-                # Pipe it into a prompt template
-                | ChatPromptTemplate.from_template("Summarize the following document:\n\n{doc}")
-                # Use an LLM to generate the summary
-                | self.llm
-                # Parse the output into a string
-                | StrOutputParser()
+            # Extract the page_content from the document object
+            {"doc": lambda x: x.page_content}
+            # Pipe it into a prompt template
+            | ChatPromptTemplate.from_template(
+                "Summarize the following document:\n\n{doc}"
+            )
+            # Use an LLM to generate the summary
+            | self.llm
+            # Parse the output into a string
+            | StrOutputParser()
         )
 
         # Use .batch() to run the summarization in parallel for efficiency
@@ -543,7 +569,9 @@ class RAGChainBuilder:
         """
 
         # The vectorstore to index the summary embeddings
-        vectorstore = Chroma(collection_name="summaries", embedding_function=self.embedding_model)
+        vectorstore = Chroma(
+            collection_name="summaries", embedding_function=self.embedding_model
+        )
 
         # The storage layer for the parent documents
         store = InMemoryByteStore()
@@ -596,7 +624,6 @@ class RAGChainBuilder:
         """
         pass
 
-
     def process_token_level_precision_colbert(self):
         """
         Standard embedding models create a single vector for an entire chunk of text
@@ -621,7 +648,13 @@ class RAGChainBuilder:
             """A helper function to retrieve content from Wikipedia."""
             # Wikipedia API endpoint and parameters
             URL = "https://en.wikipedia.org/w/api.php"
-            params = {"action": "query", "format": "json", "titles": title, "prop": "extracts", "explaintext": True}
+            params = {
+                "action": "query",
+                "format": "json",
+                "titles": title,
+                "prop": "extracts",
+                "explaintext": True,
+            }
             headers = {"User-Agent": "MyRAGApp/1.0"}
             response = requests.get(URL, params=params, headers=headers)
             data = response.json()
@@ -646,18 +679,24 @@ class RAGChainBuilder:
         colbert_retriever = RAG.as_langchain_retriever(k=3)
 
         # Use it like any other retriever
-        retrieved_docs = colbert_retriever.invoke("What animation studio did Miyazaki found?")
+        retrieved_docs = colbert_retriever.invoke(
+            "What animation studio did Miyazaki found?"
+        )
         print(retrieved_docs[0].page_content)
 
-
     def process_dedicated_re_ranking(self):
-
         # Load, split, and index the document
-        loader = WebBaseLoader(web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",))
+        loader = WebBaseLoader(
+            web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",)
+        )
         blog_docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=300, chunk_overlap=50)
+        text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=300, chunk_overlap=50
+        )
         splits = text_splitter.split_documents(blog_docs)
-        vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model)
+        vectorstore = Chroma.from_documents(
+            documents=splits, embedding=self.embedding_model
+        )
 
         # First-pass retriever: get the top 10 potentially relevant documents
         retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
@@ -672,8 +711,7 @@ class RAGChainBuilder:
 
         # Create the compression retriever
         compression_retriever = ContextualCompressionRetriever(
-            base_compressor=compressor,
-            base_retriever=retriever
+            base_compressor=compressor, base_retriever=retriever
         )
 
         # Let's test it with our query
@@ -706,8 +744,10 @@ class RAGChainBuilder:
 
         # Define the output schema for our evaluation score to ensure consistent, structured output.
         class ResultScore(BaseModel):
-            score: float = Field(...,
-                                 description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.")
+            score: float = Field(
+                ...,
+                description="The score of the result, ranging from 0 to 1 where 1 is the best possible score.",
+            )
 
         # This prompt template clearly instructs the LLM on how to score the answer's correctness.
         correctness_prompt = PromptTemplate(
@@ -721,7 +761,7 @@ class RAGChainBuilder:
             Score from 0 to 1, where 1 is perfectly correct and 0 is completely incorrect.
 
             Score:
-            """
+            """,
         )
 
         # We build the evaluation chain by piping the prompt to the LLM with structured output.
@@ -729,11 +769,13 @@ class RAGChainBuilder:
 
         def evaluate_correctness(_question, _ground_truth, _generated_answer):
             """A helper function to run our custom correctness evaluation chain."""
-            result = correctness_chain.invoke({
-                "question": _question,
-                "ground_truth": _ground_truth,
-                "generated_answer": _generated_answer
-            })
+            result = correctness_chain.invoke(
+                {
+                    "question": _question,
+                    "ground_truth": _ground_truth,
+                    "generated_answer": _generated_answer,
+                }
+            )
             return result.score
 
         # Test the correctness chain with a partially correct answer.
@@ -746,12 +788,7 @@ class RAGChainBuilder:
 
     # Define the output schema for our evaluation score to ensure consistent, structured output.
 
-
-
-
-
     def run_pipeline(self):
-
         # logger.info("Starting process_and_create_retriever_v1")
         # self.process_and_create_retriever_v1()
         # logger.info("Finished process_and_create_retriever_v1")

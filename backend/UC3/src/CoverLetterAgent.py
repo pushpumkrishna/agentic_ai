@@ -4,19 +4,18 @@ import json
 
 class CoverLetterAgent(Agent):
     """
-    Cover Letter Agent:
+        Cover Letter Agent:
 
-Role: Writes a personalized cover letter.
-Purpose: Emphasizes candidate strengths, bridges any skill gaps, and aligns tone with the JD.
+    Role: Writes a personalized cover letter.
+    Purpose: Emphasizes candidate strengths, bridges any skill gaps, and aligns tone with the JD.
     """
-
 
     def __init__(self, llm):
         super().__init__(
             llm=llm,
             role="Cover Letter Generator",
             backstory="I write cover letters tailored to job descriptions and candidate profiles.",
-            goal="Generate persuasive cover letters that address gaps and emphasize fit."
+            goal="Generate persuasive cover letters that address gaps and emphasize fit.",
         )
 
     def execute_task(self, task: Task, context: dict = None, tools: list = None):

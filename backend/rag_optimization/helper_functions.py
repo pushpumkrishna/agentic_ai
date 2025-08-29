@@ -12,6 +12,7 @@ import textwrap
 # Third-party imports
 import tiktoken
 import PyPDF2
+
 # import pylcs
 import pandas as pd
 import dill
@@ -21,8 +22,6 @@ from langchain.docstore.document import Document
 # =============================================================================
 # TEXT PROCESSING FUNCTIONS
 # =============================================================================
-
-
 
 
 def replace_t_with_space(list_of_documents):
@@ -36,7 +35,7 @@ def replace_t_with_space(list_of_documents):
         list: The modified list of documents with tab characters replaced by spaces.
     """
     for doc in list_of_documents:
-        doc.page_content = doc.page_content.replace('\t', ' ')
+        doc.page_content = doc.page_content.replace("\t", " ")
     return list_of_documents
 
 
@@ -50,7 +49,7 @@ def replace_double_lines_with_one_line(text):
     Returns:
         str: The text string with double newlines replaced by single newlines.
     """
-    cleaned_text = re.sub(r'\n\n', '\n', text)
+    cleaned_text = re.sub(r"\n\n", "\n", text)
     return cleaned_text
 
 
@@ -85,6 +84,7 @@ def text_wrap(text, width=120):
 # PDF PROCESSING FUNCTIONS
 # =============================================================================
 
+
 def split_into_chapters(book_path):
     """
     Splits a PDF book into chapters based on chapter title patterns.
@@ -96,7 +96,7 @@ def split_into_chapters(book_path):
         list: A list of Document objects, each representing a chapter with its
               text content and chapter number metadata.
     """
-    with open(book_path, 'rb') as pdf_file:
+    with open(book_path, "rb") as pdf_file:
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         documents = pdf_reader.pages
 
@@ -104,7 +104,7 @@ def split_into_chapters(book_path):
         text = " ".join([doc.extract_text() for doc in documents])
 
         # Split text into chapters based on chapter title pattern
-        chapters = re.split(r'(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)', text)
+        chapters = re.split(r"(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)", text)
 
         # Create Document objects with chapter metadata
         chapter_docs = []
@@ -149,6 +149,7 @@ def split_into_chapters(book_path):
 # SIMILARITY AND ANALYSIS FUNCTIONS
 # =============================================================================
 
+
 def is_similarity_ratio_lower_than_th(large_string, short_string, th):
     """
     Checks if the similarity ratio between two strings is lower than a given threshold.
@@ -188,7 +189,7 @@ def analyse_metric_results(results_df):
         "context_recall": "Measures the proportion of relevant documents that are successfully retrieved.",
         "context_entity_recall": "Measures the proportion of relevant entities mentioned in the question that are also found in the retrieved documents.",
         "answer_similarity": "Measures the semantic similarity between the generated answer and the ground truth answer.",
-        "answer_correctness": "Measures whether the generated answer is factually correct."
+        "answer_correctness": "Measures whether the generated answer is factually correct.",
     }
 
     for metric_name, metric_value in results_df.items():
@@ -210,6 +211,7 @@ def analyse_metric_results(results_df):
 # OBJECT SERIALIZATION FUNCTIONS
 # =============================================================================
 
+
 def save_object(obj, filename):
     """
     Save a Python object to a file using dill serialization.
@@ -218,7 +220,7 @@ def save_object(obj, filename):
         obj: The Python object to save.
         filename (str): The name of the file where the object will be saved.
     """
-    with open(filename, 'wb') as file:
+    with open(filename, "wb") as file:
         dill.dump(obj, file)
     print(f"Object has been saved to '{filename}'.")
 
@@ -233,10 +235,11 @@ def load_object(filename):
     Returns:
         object: The loaded Python object.
     """
-    with open(filename, 'rb') as file:
+    with open(filename, "rb") as file:
         obj = dill.load(file)
     print(f"Object has been loaded from '{filename}'.")
     return obj
+
 
 # =============================================================================
 # EXAMPLE USAGE

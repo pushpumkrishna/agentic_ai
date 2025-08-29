@@ -38,7 +38,9 @@ import logging
 
 from fastapi import FastAPI
 from fastmcp import FastMCP
-from fastmcp.client import Client  # Use unified client API :contentReference[oaicite:0]{index=0}
+from fastmcp.client import (
+    Client,
+)  # Use unified client API :contentReference[oaicite:0]{index=0}
 
 from backend.UC7.src.langgraph_fast_api import RequestData, graph
 
@@ -93,5 +95,3 @@ from backend.UC7.src.langgraph_fast_api import RequestData, graph
 #
 #     # Use an in-memory transport by passing the server directly to the client
 #     loop.run_until_complete(run_client_tests())
-
-

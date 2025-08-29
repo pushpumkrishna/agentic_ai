@@ -7,8 +7,8 @@ def weather_forecaster(state):
     prompt = f"""
     Based on the destination and month, provide a detailed weather forecast including temperature, precipitation, 
     and advice for travelers:
-    Destination: {state['preferences'].get('destination', '')}
-    Month: {state['preferences'].get('month', '')}
+    Destination: {state["preferences"].get("destination", "")}
+    Month: {state["preferences"].get("month", "")}
     """
     try:
         result = llm.invoke([HumanMessage(content=prompt)]).content

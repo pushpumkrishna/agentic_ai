@@ -9,8 +9,8 @@ def recommend_activities(state):
     llm = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
     prompt = f"""
     Based on the following preferences and itinerary, suggest unique local activities:
-    Preferences: {json.dumps(state['preferences'], indent=2)}
-    Itinerary: {state['itinerary']}
+    Preferences: {json.dumps(state["preferences"], indent=2)}
+    Itinerary: {state["itinerary"]}
 
     Provide suggestions in bullet points for each day if possible.
     """

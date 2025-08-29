@@ -41,21 +41,22 @@ class AgentState(TypedDict):
 
 def search_agent(state: AgentState) -> str:
     """
-        Executes a ReAct-style agent that processes a user query.
+    Executes a ReAct-style agent that processes a user query.
 
-        This function takes the current state (which includes the user's question),
-        creates an agent using the Gemini language model and the `serper_search` tool,
-        then runs the agent to get a response. The final answer is returned as updated state.
+    This function takes the current state (which includes the user's question),
+    creates an agent using the Gemini language model and the `serper_search` tool,
+    then runs the agent to get a response. The final answer is returned as updated state.
 
-        Args:
-            state (AgentState): A dictionary with the user's query.
+    Args:
+        state (AgentState): A dictionary with the user's query.
 
-        Returns:
-            dict: Updated state with the generated answer.
-        """
+    Returns:
+        dict: Updated state with the generated answer.
+    """
     agent = create_react_agent(llm, [serper_search])
     result = agent.invoke({"messages": state["user_query"]})
     return {"answer": result["messages"][-1].content}
+
 
 # --- Define Graph ---
 workflow = StateGraph(AgentState)
@@ -68,12 +69,12 @@ workflow.add_edge("search_agent", END)
 app = workflow.compile()
 
 from IPython.display import Image, display
+
 Image(app.get_graph().draw_mermaid_png())
 
 # --- Run Graph ---
 result = app.invoke({"user_query": "Who won the IPL 2025 final?"})
 print(result["answer"])
-
 
 
 # --- Math Agent ---
@@ -88,10 +89,13 @@ def math_agent(state: AgentState) -> str:
         dict: Updated state with the computed answer from the LLM.
     """
     print("--- Math Node ---")
-    prompt = f"Solve this math problem and return only the answer: {state['user_query']}"
+    prompt = (
+        f"Solve this math problem and return only the answer: {state['user_query']}"
+    )
     response = llm.invoke(prompt)
-    state['answer'] = response.content.strip()
+    state["answer"] = response.content.strip()
     return state
+
 
 # --- Router Agent ---
 def router_agent(state: AgentState) -> str:
@@ -109,15 +113,14 @@ def router_agent(state: AgentState) -> str:
         dict: Updated state containing the user's query.
     """
     print("--- Input Node ---")
-    state['user_query'] = input("Input user query: ")
+    state["user_query"] = input("Input user query: ")
     return state
+
 
 from typing import Literal
 
-agent_docs = {
-    "search_agent": search_agent.__doc__,
-    "math_agent": math_agent.__doc__
-}
+agent_docs = {"search_agent": search_agent.__doc__, "math_agent": math_agent.__doc__}
+
 
 def routing_logic(state: AgentState) -> Literal["math_agent", "search_agent"]:
     """
@@ -132,11 +135,11 @@ def routing_logic(state: AgentState) -> Literal["math_agent", "search_agent"]:
     """
     prompt = f"""
     You are a router agent. Your task is to choose the best agent for the job.
-    Here is the user query: {state['user_query']}
+    Here is the user query: {state["user_query"]}
 
     You can choose from the following agents:
-    - math_agent: {agent_docs['math_agent']}
-    - search_agent: {agent_docs['search_agent']}
+    - math_agent: {agent_docs["math_agent"]}
+    - search_agent: {agent_docs["search_agent"]}
 
     Which agent should handle this query? Respond with just the agent name.
     """
@@ -144,11 +147,12 @@ def routing_logic(state: AgentState) -> Literal["math_agent", "search_agent"]:
     decision = response.content.strip().lower()
     return "math_agent" if "math" in decision else "search_agent"
 
+
 # --- Updated Graph ---
 workflow = StateGraph(AgentState)
-workflow.add_node("router_agent", router_agent) # Adds the new router agent to the flow
+workflow.add_node("router_agent", router_agent)  # Adds the new router agent to the flow
 workflow.add_node("search_agent", search_agent)
-workflow.add_node("math_agent", math_agent) # Adds the math agent to the flow
+workflow.add_node("math_agent", math_agent)  # Adds the math agent to the flow
 
 workflow.add_edge(START, "router_agent")
 workflow.add_conditional_edges("router_agent", routing_logic)
@@ -158,7 +162,8 @@ workflow.add_edge("math_agent", END)
 app = workflow.compile()
 
 from IPython.display import Image, display
+
 Image(app.get_graph().draw_mermaid_png())
 
-app.invoke({})["answer"] # test for search node
-app.invoke({})["answer"] # test for search node
+app.invoke({})["answer"]  # test for search node
+app.invoke({})["answer"]  # test for search node

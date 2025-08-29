@@ -1,4 +1,3 @@
-
 QUESTION_ANSWER_COT_PROMPT_TEMPLATE = """ 
             Examples of Chain-of-Thought Reasoning
 
