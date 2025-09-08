@@ -5,9 +5,11 @@ import asyncio
 from backend.config.logging_lib import logger
 from backend.rag_optimization.build_graph import GraphRetrieval
 from backend.rag_optimization.encoding import EncodeEmbeddings
+from backend.rag_optimization.final_graph import execute_plan_and_print_steps
 from backend.rag_optimization.retrieve_data import RetrieveData
 from backend.rag_optimization.second_retreival import SecondRetrieval
 from backend.rag_optimization.step_1_preprocessing import ProcessDocument
+from backend.utils.measure_time import measure_time
 
 # --- Load environment variables (e.g., API keys) ---
 load_dotenv(override=True)
@@ -19,6 +21,7 @@ os.environ["PYDEVD_WARN_EVALUATION_TIMEOUT"] = "100000"
 groq_api_key = os.getenv("GROQ_API_KEY")
 
 
+@measure_time
 async def main():
     hp_pdf_path = "Harry_Potter_Book_1_The_Sorcerers_Stone.pdf"
     handler = ProcessDocument(hp_pdf_path)
@@ -63,7 +66,41 @@ async def main():
 
     await second_handler.test_answer_workflow_graph()
 
-    print("done")
+    logger.info("test_answer_workflow_graph done")
+
+    """An example we want the model to fail"""
+    # -----------------------------------------------------------
+    # Example: Run the Plan-and-Execute Agent for a Sample Question
+    # -----------------------------------------------------------
+
+    # Define the input question for the agent
+    input = {"question": "what did professor lupin teach?"}
+
+    # Execute the plan-and-execute workflow and print each step
+    final_answer, final_state = await execute_plan_and_print_steps(chunks_vector_store,
+                                                                   chapter_summaries_vector_store,
+                                                                   book_quotes_vectorstore,
+                                                                   input)
+    print((final_answer, final_state))
+
+    """An example we want the model to succeed"""
+    # -----------------------------------------------------------
+    # Example: Run the Plan-and-Execute Agent for a Complex Question
+    # -----------------------------------------------------------
+
+    # Define the input question for the agent.
+    # This question requires reasoning about the professor who helped the villain and what class they teach.
+    input = {
+        "question": "what is the class that the professor who helped the villain is teaching?"
+    }
+
+    # Execute the plan-and-execute workflow and print each step.
+    # The function will print the reasoning process and the final answer.
+    final_answer, final_state = await execute_plan_and_print_steps(chunks_vector_store,
+                                                                   chapter_summaries_vector_store,
+                                                                   book_quotes_vectorstore,
+                                                                   input)
+    print((final_answer, final_state))
 
 
 if __name__ == "__main__":

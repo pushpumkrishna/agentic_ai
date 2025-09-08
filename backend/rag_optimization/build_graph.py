@@ -6,6 +6,7 @@ from langgraph.graph import END, StateGraph
 from IPython.display import display, Image
 from backend.rag_optimization.retrieve_data import RetrieveData
 from backend.config.logging_lib import logger
+from backend.utils.measure_time import measure_time
 
 
 # Define the state for the workflow graph
@@ -63,6 +64,7 @@ class GraphRetrieval(RetrieveData):
         )
         logger.info("Initialized GraphRetrieval with provided FAISS vectorstores")
 
+    @measure_time
     async def graph_pipeline(self) -> None:
         """
         Description:

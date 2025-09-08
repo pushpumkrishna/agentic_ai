@@ -1,12 +1,14 @@
 from pprint import pprint
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 from backend.config.azure_models import AzureOpenAIModels
 from backend.rag_optimization.research import RewriteQuestion
 from backend.config.logging_lib import logger
 import asyncio
+
+from backend.utils.measure_time import measure_time
 
 
 # Output schema for the filtered relevant content
@@ -18,7 +20,6 @@ class KeepRelevantContent(BaseModel):
 
 class RetrieveData(RewriteQuestion):
     """--- LLM-based Function to Filter Only Relevant Retrieved Content ---"""
-
     # Output schema for the filtered relevant content
     relevant_content: Optional[str] = Field(
         default=None,
@@ -33,9 +34,18 @@ class RetrieveData(RewriteQuestion):
         description="A brief explanation of why the retrieved content is relevant to the rewritten question.",
     )
 
-    chunks_query_retriever: Optional[Any] = None
-    chapter_summaries_query_retriever: Optional[Any] = None
-    book_quotes_query_retriever: Optional[Any] = None
+    # chunks_query_retriever: Optional[Any]
+    # chapter_summaries_query_retriever: Optional[Any]
+    # book_quotes_query_retriever: Optional[Any]
+
+    # relevant_content: Optional[str] = Field(default=None)
+    # rewritten_question: Optional[str] = Field(default=None)
+    # explanation: Optional[str] = Field(default=None)
+
+    # private attributes (not validated or in schema)
+    _chunks_query_retriever: Any = PrivateAttr()
+    _chapter_summaries_query_retriever: Any = PrivateAttr()
+    _book_quotes_query_retriever: Any = PrivateAttr()
 
     def __init__(
         self,
@@ -48,28 +58,28 @@ class RetrieveData(RewriteQuestion):
         super().__init__(**data)
 
         # Retriever for book chunks (returns the top 1 most relevant chunk)
-        self.chunks_query_retriever = (
+        self._chunks_query_retriever = (
             chunks_vector_store.as_retriever(search_kwargs={"k": 1})
             if isinstance(chunks_vector_store, FAISS)
             else None
         )
 
         # Retriever for chapter summaries (returns the top 1 most relevant summary)
-        self.chapter_summaries_query_retriever = (
+        self._chapter_summaries_query_retriever = (
             chapter_summaries_vector_store.as_retriever(search_kwargs={"k": 1})
             if isinstance(chapter_summaries_vector_store, FAISS)
             else None
         )
 
         # Retriever for book quotes (returns the top 10 most relevant quotes)
-        self.book_quotes_query_retriever = (
+        self._book_quotes_query_retriever = (
             book_quotes_vectorstore.as_retriever(search_kwargs={"k": 10})
             if isinstance(book_quotes_vectorstore, FAISS)
             else None
         )
 
     @staticmethod
-    async def escape_quotes(text: str) -> str:
+    def escape_quotes(text: str) -> str:
         """
         Description:
             Escapes both single and double quotes in a string.
@@ -119,25 +129,25 @@ class RetrieveData(RewriteQuestion):
 
         try:
             # Retrieve relevant book chunks
-            if self.chunks_query_retriever is not None:
+            if self._chunks_query_retriever is not None:
                 logger.info("Retrieving relevant chunks...")
                 # Some retrievers expose .invoke, some expose .get_relevant_documents. Use whatever is present.
-                if hasattr(self.chunks_query_retriever, "invoke"):
+                if hasattr(self._chunks_query_retriever, "invoke"):
                     docs = await asyncio.to_thread(
-                        self.chunks_query_retriever.invoke, question
+                        self._chunks_query_retriever.invoke, question
                     )
                 else:
                     docs = await asyncio.to_thread(
-                        self.chunks_query_retriever.get_relevant_documents, question
+                        self._chunks_query_retriever.invoke, question
                     )
                 # join page_content safely
                 context = " ".join(getattr(doc, "page_content", "") for doc in docs)
 
             # Retrieve relevant chapter summaries
-            if self.chapter_summaries_query_retriever is not None:
+            if self._chapter_summaries_query_retriever is not None:
                 logger.info("Retrieving relevant chapter summaries...")
                 docs_summaries = await asyncio.to_thread(
-                    self.chapter_summaries_query_retriever.get_relevant_documents,
+                    self._chapter_summaries_query_retriever.get_relevant_documents,
                     question,
                 )
                 context_summaries = " ".join(
@@ -146,10 +156,10 @@ class RetrieveData(RewriteQuestion):
                 )
 
             # Retrieve relevant book quotes
-            if self.book_quotes_query_retriever is not None:
+            if self._book_quotes_query_retriever is not None:
                 logger.info("Retrieving relevant book quotes...")
                 docs_book_quotes = await asyncio.to_thread(
-                    self.book_quotes_query_retriever.get_relevant_documents, question
+                    self._book_quotes_query_retriever.get_relevant_documents, question
                 )
                 book_quotes = " ".join(
                     getattr(doc, "page_content", "") for doc in docs_book_quotes
@@ -157,7 +167,7 @@ class RetrieveData(RewriteQuestion):
 
             # Aggregate all contexts and escape problematic characters
             all_contexts = context + " " + context_summaries + " " + book_quotes
-            all_contexts = await self.escape_quotes(all_contexts)
+            all_contexts = self.escape_quotes(all_contexts)
             logger.info("Finished retrieve_context_per_question")
             return {"context": all_contexts, "question": question}
 
@@ -165,6 +175,7 @@ class RetrieveData(RewriteQuestion):
             logger.exception("Error while retrieving context for question")
             raise RuntimeError("Failed to retrieve context from vector stores") from e
 
+    @measure_time
     async def run_retriever_pipeline(self) -> Any:
         """
         Description:
@@ -320,7 +331,7 @@ class RetrieveData(RewriteQuestion):
             if isinstance(relevant_content, list):
                 relevant_content = "".join(str(x) for x in relevant_content)
             relevant_content = str(relevant_content)
-            relevant_content = await self.escape_quotes(relevant_content)
+            relevant_content = self.escape_quotes(relevant_content)
 
             logger.info("Finished keep_only_relevant_content")
             return {
@@ -332,11 +343,3 @@ class RetrieveData(RewriteQuestion):
         except Exception as e:
             logger.exception("Error while filtering relevant content using LLM")
             raise RuntimeError("LLM filtering failed") from e
-
-
-if __name__ == "__main__":
-    hp_pdf_path = "Harry_Potter_Book_1_The_Sorcerers_Stone.pdf"
-    handler = RetrieveData()
-    summaries, book_quotes_list = handler.preprocess_pipeline()
-    for index, value in enumerate(summaries):
-        print((value.metadata, value.page_content))

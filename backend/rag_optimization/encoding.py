@@ -7,6 +7,7 @@ from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from backend.config.logging_lib import logger
+from backend.utils.measure_time import measure_time
 
 
 class EncodeEmbeddings:
@@ -227,6 +228,7 @@ class EncodeEmbeddings:
             logger.exception("Error encoding quotes")
             raise RuntimeError("Failed to encode quotes") from e
 
+    @measure_time
     async def create_vector_db(
         self,
         chapter_summaries_input: Tuple[Any],

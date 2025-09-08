@@ -10,6 +10,7 @@ from langchain_core.prompts import PromptTemplate
 import tiktoken
 from backend.config.azure_models import AzureOpenAIModels
 from backend.config.logging_lib import logger
+from backend.utils.measure_time import measure_time
 
 
 class ProcessDocument:
@@ -267,6 +268,7 @@ class ProcessDocument:
         logger.info(f"Finished summarization for chapter: {chapter.metadata}")
         return doc_summary
 
+    @measure_time
     async def preprocess_pipeline(self) -> tuple[tuple[Any], list[Document]]:
         """
         Description:

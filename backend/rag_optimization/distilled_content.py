@@ -1,6 +1,5 @@
 import os
 from pprint import pprint
-
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
@@ -23,7 +22,8 @@ class IsDistilledContentGroundedOnContent(BaseModel):
 
 
 class DistilledContent:
-    def is_distilled_content_grounded_on_content(self, state):
+    @staticmethod
+    def is_distilled_content_grounded_on_content(state):
         """
         Determines if the distilled content is grounded on the original context.
 
