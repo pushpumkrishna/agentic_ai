@@ -1,6 +1,6 @@
 import os
 import asyncio
-from typing import List, Tuple, Union, Any, Optional
+from typing import List, Tuple, Union, Any
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
@@ -267,16 +267,16 @@ class EncodeEmbeddings:
         if not isinstance(hp_pdf_path, str):
             raise TypeError("hp_pdf_path must be a string")
 
-        chunks_vector_store: Optional[FAISS] = None
-        chapter_summaries_vector_store: Optional[FAISS] = None
-        book_quotes_vectorstore: Union[FAISS, List, Any] = []
+        # chunks_vector_store: Optional[FAISS] = None
+        # chapter_summaries_vector_store: Optional[FAISS] = None
+        # book_quotes_vectorstore: Union[FAISS, List, Any] = []
 
         try:
             # If vector stores exist on disk, load them
             if (
-                os.path.exists("chunks_vector_store")
-                and os.path.exists("chapter_summaries_vector_store")
-                and os.path.exists("book_quotes_vectorstore")
+                os.path.exists("../rag_optimization/chunks_vector_store")
+                and os.path.exists("../rag_optimization/chapter_summaries_vector_store")
+                and os.path.exists("../rag_optimization/book_quotes_vectorstore")
             ):
                 logger.info("Found existing vector stores; loading from disk")
                 embeddings = HuggingFaceEmbeddings(
@@ -290,13 +290,13 @@ class EncodeEmbeddings:
                     )
 
                 chunks_vector_store = await asyncio.to_thread(
-                    load_faiss, "chunks_vector_store", embeddings
+                    load_faiss, "../rag_optimization/chunks_vector_store", embeddings
                 )
                 chapter_summaries_vector_store = await asyncio.to_thread(
-                    load_faiss, "chapter_summaries_vector_store", embeddings
+                    load_faiss, "../rag_optimization/chapter_summaries_vector_store", embeddings
                 )
                 book_quotes_vectorstore = await asyncio.to_thread(
-                    load_faiss, "book_quotes_vectorstore", embeddings
+                    load_faiss, "../rag_optimization/book_quotes_vectorstore", embeddings
                 )
 
                 logger.info("Loaded vector stores from disk successfully")
@@ -320,16 +320,21 @@ class EncodeEmbeddings:
                 logger.info("Saving vector stores to disk")
                 if isinstance(chunks_vector_store, FAISS):
                     await asyncio.to_thread(
-                        chunks_vector_store.save_local, "chunks_vector_store"
+                        lambda: chunks_vector_store.save_local(
+                            "../rag_optimization/chunks_vector_store"
+                        )
                     )
                 if isinstance(chapter_summaries_vector_store, FAISS):
                     await asyncio.to_thread(
-                        chapter_summaries_vector_store.save_local,
-                        "chapter_summaries_vector_store",
+                        lambda: chapter_summaries_vector_store.save_local(
+                            "../rag_optimization/chapter_summaries_vector_store"
+                        )
                     )
                 if isinstance(book_quotes_vectorstore, FAISS):
                     await asyncio.to_thread(
-                        book_quotes_vectorstore.save_local, "book_quotes_vectorstore"
+                        lambda: book_quotes_vectorstore.save_local(
+                            "../rag_optimization/book_quotes_vectorstore"
+                        )
                     )
 
                 logger.info("Saved vector stores to disk successfully")
@@ -344,11 +349,3 @@ class EncodeEmbeddings:
             chapter_summaries_vector_store,
             book_quotes_vectorstore,
         )
-
-
-# if __name__ == "__main__":
-#     handler = EncodeEmbeddings()
-#     hp_pdf_path = "Harry_Potter_Book_1_The_Sorcerers_Stone.pdf"
-#     A, B, C = handler.create_vector_db(chapter_summaries, [], hp_pdf_path)
-#     print((A, B, C))
-#     print("done")

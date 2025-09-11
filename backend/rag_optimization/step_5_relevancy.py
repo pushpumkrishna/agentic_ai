@@ -1,11 +1,11 @@
 import asyncio
-from typing import ClassVar, Any, Dict
+from typing import Dict, Any, ClassVar, Optional
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 from backend.config.azure_models import AzureOpenAIModels
-from backend.utils.constants import QUESTION_ANSWER_COT_PROMPT_TEMPLATE
 from backend.config.logging_lib import logger
+from backend.utils.constants import QUESTION_ANSWER_COT_PROMPT_TEMPLATE
 
 
 # Define the output schema for the answer
@@ -15,28 +15,7 @@ class QuestionAnswerFromContext(BaseModel):
     )
 
 
-# Output schema for the relevance check
-class Relevance(BaseModel):
-    is_relevant: bool = Field(
-        description="Whether the document is relevant to the query."
-    )
-    explanation: str = Field(
-        description="An explanation of why the document is relevant or not."
-    )
-
-
-# Define the output schema for the grounding check
-class IsGroundedOnFacts(BaseModel):
-    """
-    Output schema for checking if the answer is grounded in the provided context.
-    """
-
-    grounded_on_facts: bool = Field(
-        description="Answer is grounded in the facts, 'yes' or 'no'"
-    )
-
-
-# Define the output schema for the LLM's response
+# Define the output schema for the LLM response
 class QuestionAnswer(BaseModel):
     can_be_answered: bool = Field(
         description="binary result of whether the question can be fully answered or not"
@@ -46,100 +25,42 @@ class QuestionAnswer(BaseModel):
     )
 
 
-"""--- LLM-based Function to Rewrite a Question for Better Vectorstore Retrieval ---"""
+# Output schema for the relevance check
+class Relevance(BaseModel):
+    relevant_content: Optional[str] = Field(
+        default=None,
+        description="The relevant content from the retrieved documents that is relevant to the query.",
+    )
+    rewritten_question: Optional[str] = Field(
+        default=None, description="The rewritten version of the original user question."
+    )
+    explanation: Optional[str] = Field(
+        default=None,
+        description="A brief explanation of why the retrieved content is relevant to the rewritten question.",
+    )
+    is_relevant: bool = Field(
+        description="Whether the document is relevant to the query."
+    )
 
 
-class RewriteQuestion(BaseModel):
+# Define the output schema for the grounding check
+class IsGroundedOnFacts(BaseModel):
     """
-    Output schema for the rewritten question.
+    Output schema for checking if the answer is grounded in the provided context.
     """
+    grounded_on_facts: bool = Field(
+        description="Answer is grounded in the facts, 'True' or 'False'"
+    )
 
+
+class RelevanceCheck:
     llm_model: ClassVar = AzureOpenAIModels().get_azure_model_4()
-
-    @staticmethod
-    async def rewrite_question(state: Dict[str, Any]) -> Dict[str, str]:
-        """
-        Description:
-            Rewrites the given question using the LLM to optimize it for vectorstore retrieval.
-
-        Params:
-            state (dict): A dictionary containing the question to rewrite, with key "question".
-
-        Return:
-            dict: A dictionary with the rewritten question under the key "question".
-
-        Exceptions:
-            TypeError: If state is not a dict or missing 'question'.
-            RuntimeError: If LLM call fails.
-        """
-        logger.info("Starting rewrite_question")
-        if not isinstance(state, dict) or "question" not in state:
-            raise TypeError("state must be a dict containing a 'question' key")
-
-        # Create a JSON parser for the output schema
-        rewrite_question_string_parser = JsonOutputParser(
-            pydantic_object=RewriteQuestion
-        )
-
-        # Initialize the LLM for rewriting questions
-        rewrite_llm = RewriteQuestion.llm_model
-
-        # Define the prompt template for question rewriting
-        rewrite_prompt_template = """
-        You are a question re-writer that converts an input question to a better version optimized for vectorstore 
-        retrieval.
-        Analyze the input question {question} and try to reason about the underlying semantic intent / meaning.
-        {format_instructions}
-        """
-
-        # Create the prompt object
-        rewrite_prompt = PromptTemplate(
-            template=rewrite_prompt_template,
-            input_variables=["question"],
-            partial_variables={
-                "format_instructions": rewrite_question_string_parser.get_format_instructions()
-            },
-        )
-
-        # Combine prompt, LLM, and parser into a chain
-        question_rewriter = (
-            rewrite_prompt | rewrite_llm | rewrite_question_string_parser
-        )
-
-        question = state["question"]
-        logger.info("Rewriting the question: %s", question)
-
-        try:
-            # chain.invoke is blocking — run in a thread
-            result = await asyncio.to_thread(
-                question_rewriter.invoke, {"question": question}
-            )
-
-            # result may be dict-like or object — normalize
-            if isinstance(result, dict):
-                new_question = result.get("rewritten_question") or result.get(
-                    "question"
-                )
-            else:
-                # try attribute access
-                new_question = getattr(result, "rewritten_question", None) or getattr(
-                    result, "question", None
-                )
-
-            if not new_question:
-                raise RuntimeError("LLM did not return a rewritten question")
-
-            logger.info("Finished rewrite_question: %s", new_question)
-            return {"question": new_question}
-
-        except Exception as e:
-            logger.exception("Error in rewrite_question")
-            raise RuntimeError("Failed to rewrite question using LLM") from e
 
     """--- LLM-based Function to Answer a Question from Context Using Chain-of-Thought Reasoning ---"""
 
     async def answer_question_from_context(
-        self, state: Dict[str, Any]
+            self,
+            state: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Description:
@@ -152,8 +73,9 @@ class RewriteQuestion(BaseModel):
 
         Return:
             dict: A dictionary containing:
-                - "answer": The answer to the question from the context.
+                - "new_answer": The answer to the question from the context.
                 - "context": The context used.
+                - "answer": Original Answer
                 - "question": The original question.
 
         Exceptions:
@@ -162,9 +84,9 @@ class RewriteQuestion(BaseModel):
         """
         logger.info("Starting answer_question_from_context")
         if (
-            not isinstance(state, dict)
-            or "question" not in state
-            or not ("context" in state or "aggregated_context" in state)
+                not isinstance(state, dict)
+                or "question" not in state
+                or not ("context" in state or "aggregated_context" in state)
         ):
             raise TypeError(
                 "state must be a dict containing 'question' and 'context' or 'aggregated_context'"
@@ -181,10 +103,8 @@ class RewriteQuestion(BaseModel):
 
         # Combine the prompt and LLM into a chain with structured output
         question_answer_from_context_cot_chain = (
-            question_answer_from_context_cot_prompt
-            | question_answer_from_context_llm.with_structured_output(
-                QuestionAnswerFromContext
-            )
+                question_answer_from_context_cot_prompt
+                | question_answer_from_context_llm.with_structured_output(QuestionAnswerFromContext)
         )
 
         # Use 'aggregated_context' if available, otherwise fall back to 'context'
@@ -196,7 +116,7 @@ class RewriteQuestion(BaseModel):
         logger.info("Invoking LLM to answer the question from context")
         try:
             output = await asyncio.to_thread(
-                question_answer_from_context_cot_chain.invoke, input_data
+                lambda: question_answer_from_context_cot_chain.invoke(input_data)
             )
 
             # Normalize output
@@ -212,7 +132,8 @@ class RewriteQuestion(BaseModel):
 
             logger.info("Finished answer_question_from_context")
             print(f"answer before checking hallucination: {answer}")
-            return {"answer": answer, "context": context, "question": question}
+            state["answer"] = answer
+            return state
 
         except Exception as e:
             logger.exception("Error in answer_question_from_context")
@@ -239,9 +160,9 @@ class RewriteQuestion(BaseModel):
         """
         logger.info("Starting is_relevant_content")
         if (
-            not isinstance(state, dict)
-            or "question" not in state
-            or "context" not in state
+                not isinstance(state, dict)
+                or "question" not in state
+                or "context" not in state
         ):
             raise TypeError("state must be a dict containing 'question' and 'context'")
 
@@ -269,7 +190,7 @@ class RewriteQuestion(BaseModel):
 
         # Combine prompt, LLM, and parser into a chain
         is_relevant_content_chain = (
-            is_relevant_content_prompt | is_relevant_llm | is_relevant_json_parser
+                is_relevant_content_prompt | is_relevant_llm | is_relevant_json_parser
         )
 
         question = state["question"]
@@ -280,8 +201,9 @@ class RewriteQuestion(BaseModel):
         logger.info("Invoking LLM to check relevance")
         try:
             output = await asyncio.to_thread(
-                is_relevant_content_chain.invoke, input_data
+                lambda: is_relevant_content_chain.invoke(input_data)
             )
+
             # Normalize output
             if isinstance(output, dict):
                 is_rel = output.get("is_relevant")
@@ -300,8 +222,7 @@ class RewriteQuestion(BaseModel):
             logger.exception("Error in is_relevant_content")
             raise RuntimeError("Failed to determine relevance using LLM") from e
 
-    @staticmethod
-    async def grade_generation_v_documents_and_question(state: Dict[str, Any]) -> str:
+    async def grade_generation_v_documents_and_question(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Description:
             Grades the generated answer to a question based on:
@@ -315,7 +236,7 @@ class RewriteQuestion(BaseModel):
                 - "answer": The generated answer
 
         Return:
-            str: One of "hallucination", "useful", or "not_useful"
+            str: One of "hallucinations", "useful", or "not_useful"
 
         Exceptions:
             TypeError: If state is not a dict or missing keys.
@@ -323,17 +244,17 @@ class RewriteQuestion(BaseModel):
         """
         logger.info("Starting grade_generation_v_documents_and_question")
         if (
-            not isinstance(state, dict)
-            or "context" not in state
-            or "answer" not in state
-            or "question" not in state
+                not isinstance(state, dict)
+                or "context" not in state
+                or "answer" not in state
+                or "question" not in state
         ):
             raise TypeError(
                 "state must be a dict containing 'context', 'answer', and 'question'"
             )
 
-        # Initialize the LLM for fact-checking (using same model)
-        is_grounded_on_facts_llm = RewriteQuestion.llm_model
+        # Initialize the LLM for fact-checking (using the same model)
+        is_grounded_on_facts_llm = self.llm_model
 
         # Define the prompt template for fact-checking
         is_grounded_on_facts_prompt_template = """
@@ -351,8 +272,8 @@ class RewriteQuestion(BaseModel):
 
         # Create the LLM chain for fact-checking
         is_grounded_on_facts_chain = (
-            is_grounded_on_facts_prompt
-            | is_grounded_on_facts_llm.with_structured_output(IsGroundedOnFacts)
+                is_grounded_on_facts_prompt
+                | is_grounded_on_facts_llm.with_structured_output(IsGroundedOnFacts)
         )
 
         """--- LLM Chain to Determine if a Question Can Be Fully Answered from Context ---"""
@@ -377,11 +298,11 @@ class RewriteQuestion(BaseModel):
         )
 
         # Initialize the LLM for this task
-        can_be_answered_llm = RewriteQuestion.llm_model
+        can_be_answered_llm = self.llm_model
 
         # Compose the chain: prompt -> LLM -> output parser
         can_be_answered_chain = (
-            answer_question_prompt | can_be_answered_llm | can_be_answered_json_parser
+                answer_question_prompt | can_be_answered_llm | can_be_answered_json_parser
         )
 
         # Extract relevant fields from state
@@ -393,8 +314,7 @@ class RewriteQuestion(BaseModel):
             # 1. Check if the answer is grounded in the provided context (fact-checking)
             logger.info("Invoking LLM to check grounding in facts")
             result = await asyncio.to_thread(
-                is_grounded_on_facts_chain.invoke,
-                {"context": context, "answer": answer},
+                lambda: is_grounded_on_facts_chain.invoke({"context": context, "answer": answer})
             )
 
             if isinstance(result, dict):
@@ -407,34 +327,77 @@ class RewriteQuestion(BaseModel):
 
             if not grounded_on_facts:
                 # If not grounded, label as hallucination
+                state["hallucination"] = True
                 print("The answer is hallucination.")
-                return "hallucination"
             else:
+                state["hallucination"] = False
                 print("The answer is grounded in the facts.")
 
-                # 2. Check if the question can be fully answered from the context
-                input_data = {"question": question, "context": context}
-                logger.info(
-                    "Invoking LLM to determine if question can be fully answered"
-                )
-                output = await asyncio.to_thread(
-                    can_be_answered_chain.invoke, input_data
-                )
+            # 2. Check if the question can be fully answered from the context
+            input_data = {"question": question, "context": context}
+            logger.info(
+                "Invoking LLM to determine if question can be fully answered"
+            )
+            output = await asyncio.to_thread(
+                lambda: can_be_answered_chain.invoke(input_data)
+            )
 
-                if isinstance(output, dict):
-                    can_be_answered = output.get("can_be_answered")
-                else:
-                    can_be_answered = getattr(output, "can_be_answered", None)
+            if isinstance(output, dict):
+                can_be_answered = output.get("can_be_answered")
+            else:
+                can_be_answered = getattr(output, "can_be_answered", None)
 
-                if can_be_answered:
-                    print("The question can be fully answered.")
-                    return "useful"
-                else:
-                    print("The question cannot be fully answered.")
-                    return "not_useful"
+            if can_be_answered:
+                print("The question can be fully answered.")
+                state["can_be_answered"] = True
+                state["explanation"] = output.get("explanation", "")
+            else:
+                print("The question cannot be fully answered.")
+                state["can_be_answered"] = False
+                state["explanation"] = output.get("explanation", "")
+            return state
 
         except Exception as e:
             logger.exception("Error in grade_generation_v_documents_and_question")
             raise RuntimeError(
                 "Failed to grade generation vs documents and question"
             ) from e
+
+    async def run_relevancy_pipeline(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            # 4. Check if the filtered content is relevant to the question using an LLM-based relevance check
+
+            # Use an LLM to answer the question based on the relevant context
+            if asyncio.iscoroutinefunction(self.answer_question_from_context):
+                answer_state = await self.answer_question_from_context(state=state)
+            else:
+                answer_state = await asyncio.to_thread(
+                    lambda: self.answer_question_from_context(state)
+                )
+
+            # 6. Grade the generated answer:
+            #    - Check if the answer is grounded in the provided context (fact-checking)
+            #    - Check if the question can be fully answered from the context
+            if asyncio.iscoroutinefunction(
+                    self.grade_generation_v_documents_and_question
+            ):
+                final_answer = await self.grade_generation_v_documents_and_question(
+                    answer_state
+                )
+            else:
+                final_answer = await asyncio.to_thread(
+                    lambda: self.grade_generation_v_documents_and_question(answer_state)
+                )
+
+            # 7. Print the final answer (preserve original behavior)
+            print(
+                answer_state.get("answer")
+                if isinstance(answer_state, dict)
+                else answer_state
+            )
+            logger.info("Finished run_retriever_pipeline")
+            return final_answer
+
+        except Exception as e:
+            logger.exception("Error in run_retriever_pipeline")
+            raise RuntimeError("Retriever pipeline failed") from e

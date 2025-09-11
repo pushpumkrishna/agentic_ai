@@ -4,8 +4,12 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.runnables.graph import MermaidDrawMethod
 from langgraph.graph import END, StateGraph
 from IPython.display import display, Image
-from backend.rag_optimization.retrieve_data import RetrieveData
+from langgraph.graph.state import CompiledStateGraph
+
 from backend.config.logging_lib import logger
+from backend.rag_optimization.step_3_retrieve_data import RetrieveData
+from backend.rag_optimization.step_4_rewrite_question import RewriteMultipleQuestion
+from backend.rag_optimization.step_5_relevancy import RelevanceCheck
 from backend.utils.measure_time import measure_time
 
 
@@ -16,7 +20,7 @@ class QualitativeRetrievalAnswerGraphState(TypedDict):
     answer: str
 
 
-class GraphRetrieval(RetrieveData):
+class GraphRetrieval(RetrieveData, RewriteMultipleQuestion, RelevanceCheck):
     """
     # -----------------------------------------------
     # Qualitative Retrieval Answer Graph Construction
@@ -46,6 +50,7 @@ class GraphRetrieval(RetrieveData):
         chunks_vector_store: FAISS,
         chapter_summaries_vector_store: FAISS,
         book_quotes_vectorstore: FAISS,
+        init_state,
         **data: Any,
     ):
         # Validate types and initialize parent
@@ -53,19 +58,42 @@ class GraphRetrieval(RetrieveData):
             raise TypeError("chunks_vector_store must be a FAISS instance")
         if not isinstance(chapter_summaries_vector_store, FAISS):
             raise TypeError("chapter_summaries_vector_store must be a FAISS instance")
-        # if not isinstance(book_quotes_vectorstore, FAISS):
-        #     raise TypeError("book_quotes_vectorstore must be a FAISS instance")
+        if not isinstance(book_quotes_vectorstore, FAISS):
+            raise TypeError("book_quotes_vectorstore must be a FAISS instance")
 
         super().__init__(
             chunks_vector_store,
             chapter_summaries_vector_store,
             book_quotes_vectorstore,
+            init_state,
             **data,
         )
+        # Retriever for book chunks (returns the top 1 most relevant chunk)
+        self._chunks_query_retriever = (
+            chunks_vector_store.as_retriever(search_kwargs={"k": 1})
+            if isinstance(chunks_vector_store, FAISS)
+            else None
+        )
+
+        # Retriever for chapter summaries (returns the top 1 most relevant summary)
+        self._chapter_summaries_query_retriever = (
+            chapter_summaries_vector_store.as_retriever(search_kwargs={"k": 1})
+            if isinstance(chapter_summaries_vector_store, FAISS)
+            else None
+        )
+
+        # Retriever for book quotes (returns the top 10 most relevant quotes)
+        self._book_quotes_query_retriever = (
+            book_quotes_vectorstore.as_retriever(search_kwargs={"k": 10})
+            if isinstance(book_quotes_vectorstore, FAISS)
+            else None
+        )
+
+        self.init_state = init_state
         logger.info("Initialized GraphRetrieval with provided FAISS vectorstores")
 
     @measure_time
-    async def graph_pipeline(self) -> None:
+    async def graph_pipeline(self) -> CompiledStateGraph[Any, Any, Any, Any]:
         """
         Description:
             Build and compile a StateGraph workflow connecting retrieval, filtering,
@@ -82,7 +110,12 @@ class GraphRetrieval(RetrieveData):
             RuntimeError: If graph compilation or rendering fails.
         """
         logger.info("Starting graph_pipeline")
+
         try:
+            # retrieve_context_input_question = RetrieveData(self._chunks_vector_store,
+            # self._chapter_summaries_vector_store,
+            # self._book_quotes_vectorstore,
+            # self.init_state)
             # -------------------------
             # Create the workflow graph object
             # -------------------------
@@ -92,7 +125,7 @@ class GraphRetrieval(RetrieveData):
 
             # Node: Retrieve context for the question from vector stores
             qualitative_retrieval_answer_workflow.add_node(
-                "retrieve_context_per_question", self.retrieve_context_per_question
+                "retrieve_context_per_question", self.retrieve_context_input_question
             )
 
             # Node: Use LLM to keep only relevant content from the retrieved context
@@ -185,3 +218,5 @@ class GraphRetrieval(RetrieveData):
         except Exception as e:
             logger.exception("Error in graph_pipeline")
             raise RuntimeError("Failed to build or render graph pipeline") from e
+
+        return qualitative_retrieval_answer_retrival_app

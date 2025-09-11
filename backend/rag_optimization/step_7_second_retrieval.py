@@ -7,9 +7,10 @@ from pydantic import BaseModel, Field, PrivateAttr
 from langchain_core.runnables.graph import MermaidDrawMethod
 from IPython.display import display, Image
 from backend.config.azure_models import AzureOpenAIModels
-from backend.rag_optimization.research import QuestionAnswerFromContext
-from backend.rag_optimization.retrieve_data import RetrieveData
+from backend.rag_optimization.step_3_retrieve_data import RetrieveData
 from pprint import pprint
+
+from backend.rag_optimization.step_5_relevancy import QuestionAnswerFromContext
 from backend.utils.measure_time import measure_time
 
 
@@ -124,12 +125,14 @@ class SecondRetrieval(RetrieveData):
             chunks_vector_store: FAISS,
             chapter_summaries_vector_store: FAISS,
             book_quotes_vectorstore: FAISS,
+            init_state,
             **data: Any,
     ):
         """--- Create Query Retrievers from Vector Stores ---"""
         super().__init__(chunks_vector_store,
                          chapter_summaries_vector_store,
                          book_quotes_vectorstore,
+                         init_state,
                          **data)
 
         # Retriever for book chunks (returns the top 1 most relevant chunk)
@@ -152,6 +155,7 @@ class SecondRetrieval(RetrieveData):
             if isinstance(book_quotes_vectorstore, FAISS)
             else None
         )
+        self.llm_model = AzureOpenAIModels().get_azure_model_4()
 
     async def retrieve_chunks_context_per_question(self, state):
         """
@@ -168,7 +172,7 @@ class SecondRetrieval(RetrieveData):
         print("Retrieving relevant chunks...")
         question = state["question"]
         # Retrieve relevant book chunks using the retriever
-        docs = self._chunks_query_retriever.get_relevant_documents(question)
+        docs = await self._chunks_query_retriever.ainvoke(question)
         # Concatenate the content of the retrieved documents
         context = " ".join(doc.page_content for doc in docs)
         context = self.escape_quotes(context)
@@ -201,7 +205,7 @@ class SecondRetrieval(RetrieveData):
         print("Retrieving relevant chapter summaries...")
         question = state["question"]
         # Retrieve relevant chapter summaries using the retriever
-        docs_summaries = self._chapter_summaries_query_retriever.get_relevant_documents(
+        docs_summaries = await self._chapter_summaries_query_retriever.ainvoke(
             question
         )
         # Concatenate the content of the retrieved summaries, including chapter citation
@@ -228,7 +232,7 @@ class SecondRetrieval(RetrieveData):
         print("Retrieving relevant book quotes...")
         # Retrieve relevant book quotes using the retriever
         if self._book_quotes_query_retriever is not None:
-            docs_book_quotes = self._book_quotes_query_retriever.get_relevant_documents(
+            docs_book_quotes = await self._book_quotes_query_retriever.ainvoke(
                 question
             )
             # Concatenate the content of the retrieved quotes
@@ -611,7 +615,7 @@ class SecondRetrieval(RetrieveData):
     # Qualitative Answer Workflow Graph Construction
     # -----------------------------------------------
 
-    async def answer_question_from_context(self, state):
+    async def answer_question_from_context(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Answers a question from a given context using a chain-of-thought LLM chain.
 
@@ -697,7 +701,8 @@ class SecondRetrieval(RetrieveData):
         answer = output.answer_based_on_content
         print(f'answer before checking hallucination: {answer}')
         # Return the answer, context, and question in a dictionary
-        return {"answer": answer, "context": context, "question": question}
+        state["answer"] = answer
+        return state
 
     async def answer_workflow_graph_construction(self):
         # Create the workflow graph object

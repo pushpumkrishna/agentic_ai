@@ -1,6 +1,5 @@
 from pprint import pprint
 from typing import Any
-
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
@@ -8,7 +7,7 @@ from backend.config.azure_models import AzureOpenAIModels
 from backend.rag_optimization.anonymize import AnonymizeDeAnonymize
 from backend.rag_optimization.helper_functions import text_wrap
 from backend.rag_optimization.replanner import RePlannerPipeline
-from backend.rag_optimization.second_retreival import PlanExecute, SecondRetrieval, Plan
+from backend.rag_optimization.step_7_second_retrieval import PlanExecute, SecondRetrieval, Plan
 from langgraph.graph import StateGraph, END
 from IPython.display import display, Image
 
@@ -33,10 +32,12 @@ class TaskHandlerChainRun(SecondRetrieval):
             chunks_vector_store: FAISS,
             chapter_summaries_vector_store: FAISS,
             book_quotes_vectorstore: FAISS,
+            init_state,
             **data: Any
     ):
 
-        super().__init__(chunks_vector_store, chapter_summaries_vector_store, book_quotes_vectorstore, **data)
+        super().__init__(chunks_vector_store, chapter_summaries_vector_store, book_quotes_vectorstore, init_state,
+                         **data)
 
     @staticmethod
     async def run_task_handler_chain(state: PlanExecute):
@@ -127,7 +128,7 @@ class TaskHandlerChainRun(SecondRetrieval):
             )
 
     async def run_qualitative_chunks_retrieval_workflow(self, state):
-            """
+        """
             Run the qualitative chunks retrieval workflow.
 
             Args:
@@ -136,27 +137,27 @@ class TaskHandlerChainRun(SecondRetrieval):
             Returns:
                 The state with the updated aggregated context.
             """
-            output = {}
-            state["curr_state"] = "retrieve_chunks"
-            print("Running the qualitative chunks retrieval workflow...")
-            question = state["query_to_retrieve_or_answer"]
-            inputs = {"question": question}
+        output = {}
+        state["curr_state"] = "retrieve_chunks"
+        print("Running the qualitative chunks retrieval workflow...")
+        question = state["query_to_retrieve_or_answer"]
+        inputs = {"question": question}
 
-            # Stream outputs from the workflow app
-            qualitative_chunks_retrieval_workflow_app = await (
-                self.chunks_retrieval_workflow_graph_construction()
-            )
-            async for output in qualitative_chunks_retrieval_workflow_app.astream(inputs):
-                for _, _ in output.items():
-                    pass
-                pprint("--------------------")
-            # Aggregate the retrieved context
-            if not state.get("aggregated_context", ""):
-                state["aggregated_context"] = ""
+        # Stream outputs from the workflow app
+        qualitative_chunks_retrieval_workflow_app = await (
+            self.chunks_retrieval_workflow_graph_construction()
+        )
+        async for output in qualitative_chunks_retrieval_workflow_app.astream(inputs):
+            for _, _ in output.items():
+                pass
+            pprint("--------------------")
+        # Aggregate the retrieved context
+        if not state.get("aggregated_context", ""):
+            state["aggregated_context"] = ""
 
-            output["relevant_context"] = ""
-            state["aggregated_context"] += output["relevant_context"]
-            return state
+        output["relevant_context"] = ""
+        state["aggregated_context"] += output["relevant_context"]
+        return state
 
     async def run_qualitative_summaries_retrieval_workflow(self, state):
         """
@@ -393,7 +394,7 @@ class TaskHandlerChainRun(SecondRetrieval):
 
         # Compose the chain: prompt -> LLM -> structured output (Plan)
         break_down_plan_chain = (
-            break_down_plan_prompt | break_down_plan_llm.with_structured_output(Plan)
+                break_down_plan_prompt | break_down_plan_llm.with_structured_output(Plan)
         )
 
         refined_plan = await break_down_plan_chain.ainvoke({"plan": state["plan"]})
@@ -461,8 +462,8 @@ class TaskHandlerChainRun(SecondRetrieval):
 
         # Compose the chain: prompt -> LLM -> structured output
         can_be_answered_already_chain = (
-            can_be_answered_already_prompt
-            | can_be_answered_already_llm.with_structured_output(CanBeAnsweredAlready)
+                can_be_answered_already_prompt
+                | can_be_answered_already_llm.with_structured_output(CanBeAnsweredAlready)
         )
         output = await can_be_answered_already_chain.ainvoke(inputs)
 

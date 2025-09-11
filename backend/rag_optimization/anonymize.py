@@ -5,7 +5,7 @@ from backend.config.azure_models import AzureOpenAIModels
 from typing import List
 from backend.config.logging_lib import logger
 from backend.rag_optimization.helper_functions import text_wrap
-from backend.rag_optimization.second_retreival import Plan
+from backend.rag_optimization.step_7_second_retrieval import Plan
 
 
 # Define a Pydantic model for the anonymized question output

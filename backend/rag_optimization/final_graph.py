@@ -10,7 +10,9 @@ async def execute_plan_and_print_steps(chunks_vector_store,
                                        chapter_summaries_vector_store,
                                        book_quotes_vectorstore,
                                        inputs,
-                                       recursion_limit=45):
+                                       init_state,
+                                       recursion_limit=45
+                                       ):
     """
     Executes the plan-and-execute agent workflow and prints each step.
 
@@ -33,7 +35,8 @@ async def execute_plan_and_print_steps(chunks_vector_store,
         plan_and_execute_app = TaskHandlerChainRun(
             chunks_vector_store,
             chapter_summaries_vector_store,
-            book_quotes_vectorstore).make_final_graph()
+            book_quotes_vectorstore,
+        init_state).make_final_graph()
         # Stream the outputs from the plan_and_execute_app workflow
         async for plan_output in plan_and_execute_app.astream(inputs, config=config):
             # Iterate through each step's output and print the current state
