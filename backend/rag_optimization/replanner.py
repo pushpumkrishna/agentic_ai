@@ -1,9 +1,8 @@
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
-
 from backend.config.azure_models import AzureOpenAIModels
-from backend.rag_optimization.second_retreival import Plan
+from backend.rag_optimization.step_7_second_retrieval import Plan
 
 
 # -----------------------------------------------------------

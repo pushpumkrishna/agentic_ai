@@ -8,6 +8,7 @@ import regex as re
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 import tiktoken
+from tqdm import tqdm
 from backend.config.azure_models import AzureOpenAIModels
 from backend.config.logging_lib import logger
 from backend.utils.measure_time import measure_time
@@ -34,6 +35,7 @@ class ProcessDocument:
         logger.info(
             f"Initialized ProcessDocument with file path: {self.input_pdf_path}"
         )
+        self.llm = AzureOpenAIModels().get_azure_model_4()
 
     async def split_into_chapters(self) -> list[Document]:
         """
@@ -84,7 +86,8 @@ class ProcessDocument:
 
         # Split into chapters using regex
         chapters = await asyncio.to_thread(
-            re.split, r"(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)", text
+            lambda: re.split(r"(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)", text)
+            # re.split, r"(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)", text, 0, 0, 0, 0
         )
         chapter_docs = []
         chapter_num = 1
@@ -124,7 +127,8 @@ class ProcessDocument:
 
     @staticmethod
     async def extract_book_quotes_as_documents(
-        documents: list[Document], min_length: int = 50
+        documents: list[Document],
+        min_length: int = 50
     ) -> list[Document]:
         """
         Description:
@@ -145,17 +149,23 @@ class ProcessDocument:
             isinstance(d, Document) for d in documents
         ):
             raise TypeError("documents must be a list of Document objects")
-        quotes_as_documents = []
-        quote_pattern = re.compile(rf'"(.{{{min_length},}}?)"', re.DOTALL)
 
-        for doc in documents:
-            content = doc.page_content.replace("\n", " ")
-            found_quotes = await asyncio.to_thread(quote_pattern.findall, content)
+        # quote_pattern_longer_than_min_length = re.compile(rf'"(.{{{min_length},}}?)"', re.DOTALL)
+        quote_pattern_longer_than_min_length = re.compile(rf'["“](.{{{min_length},}}?)["”]', re.DOTALL)
+
+        # Initialize an empty list to store the quote documents
+        book_quotes_list = []
+
+        # Iterate through each chapter document to find and extract quotes
+        for doc in tqdm(documents, desc="Extracting quotes"):
+            content = doc.page_content
+            # Find all occurrences that match the quote pattern
+            found_quotes = quote_pattern_longer_than_min_length.findall(content)
+            # For each found quote, create a Document object and add it to the list
             for quote in found_quotes:
-                quotes_as_documents.append(Document(page_content=quote))
-
-        logger.info("Extracted %d quotes: {len(quotes_as_documents)}")
-        return quotes_as_documents
+                quote_doc = Document(page_content=quote)
+                book_quotes_list.append(quote_doc)
+        return book_quotes_list
 
     @staticmethod
     async def replace_double_lines_with_one_line(text: str) -> str:
@@ -174,7 +184,8 @@ class ProcessDocument:
         """
         if not isinstance(text, str):
             raise TypeError("text must be a string")
-        cleaned_text = await asyncio.to_thread(re.sub, r"\n\n", "\n", text)
+        # cleaned_text = await asyncio.to_thread(re.sub, r"\n\n", "\n", text)
+        cleaned_text = await asyncio.to_thread(lambda: re.sub(r"\n\n", "\n", text))
         return cleaned_text
 
     @staticmethod
@@ -229,7 +240,6 @@ class ProcessDocument:
         )
         chapter_txt = chapter.page_content
 
-        llm = AzureOpenAIModels().get_azure_model_4()
         gpt_4o_mini_max_tokens = 50000
         model_name = "gpt-35-turbo-"
         num_tokens = await self.num_tokens_from_string(
@@ -238,11 +248,11 @@ class ProcessDocument:
 
         if num_tokens < gpt_4o_mini_max_tokens:
             chain = load_summarize_chain(
-                llm, chain_type="stuff", prompt=summarization_prompt, verbose=False
+                self.llm, chain_type="stuff", prompt=summarization_prompt, verbose=False
             )
         else:
             chain = load_summarize_chain(
-                llm,
+                self.llm,
                 chain_type="map_reduce",
                 map_prompt=summarization_prompt,
                 combine_prompt=summarization_prompt,
@@ -253,7 +263,9 @@ class ProcessDocument:
 
         try:
             summary_result = await asyncio.to_thread(
-                chain.invoke, {"input_documents": [doc_chapter]}
+                chain.invoke,
+                {"input_documents": [doc_chapter]},
+                config=None
             )
         except Exception as e:
             logger.exception("Error during summarization")
@@ -306,11 +318,3 @@ class ProcessDocument:
 
         logger.info("Finished preprocessing pipeline")
         return chapter_summaries, book_quotes_list
-
-
-# if __name__ == "__main__":
-#     hp_pdf_path = "Harry_Potter_Book_1_The_Sorcerers_Stone.pdf"
-#     handler = ProcessDocument(hp_pdf_path)
-#     # summaries, book_quotes_list = await handler.preprocess_pipeline()
-#     for index, value in enumerate(summaries):
-#         print((value.metadata, value.page_content))

@@ -1,13 +1,11 @@
 from pprint import pprint
-from typing import Any, Optional, Dict
+from typing import Any, Dict
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field, PrivateAttr
 from backend.config.azure_models import AzureOpenAIModels
-from backend.rag_optimization.research import RewriteQuestion
 from backend.config.logging_lib import logger
 import asyncio
-
 from backend.utils.measure_time import measure_time
 
 
@@ -18,25 +16,8 @@ class KeepRelevantContent(BaseModel):
     )
 
 
-class RetrieveData(RewriteQuestion):
+class RetrieveData:
     """--- LLM-based Function to Filter Only Relevant Retrieved Content ---"""
-    # Output schema for the filtered relevant content
-    relevant_content: Optional[str] = Field(
-        default=None,
-        description="The relevant content from the retrieved documents that is relevant to the query.",
-    )
-    rewritten_question: Optional[str] = Field(
-        default=None, description="The rewritten version of the original user question."
-    )
-
-    explanation: Optional[str] = Field(
-        default=None,
-        description="A brief explanation of why the retrieved content is relevant to the rewritten question.",
-    )
-
-    # chunks_query_retriever: Optional[Any]
-    # chapter_summaries_query_retriever: Optional[Any]
-    # book_quotes_query_retriever: Optional[Any]
 
     # relevant_content: Optional[str] = Field(default=None)
     # rewritten_question: Optional[str] = Field(default=None)
@@ -52,6 +33,7 @@ class RetrieveData(RewriteQuestion):
         chunks_vector_store: FAISS,
         chapter_summaries_vector_store: FAISS,
         book_quotes_vectorstore: FAISS,
+        init_state: Dict[str, Any],
         **data: Any,
     ):
         """--- Create Query Retrievers from Vector Stores ---"""
@@ -78,6 +60,8 @@ class RetrieveData(RewriteQuestion):
             else None
         )
 
+        self.init_state = init_state
+
     @staticmethod
     def escape_quotes(text: str) -> str:
         """
@@ -91,14 +75,14 @@ class RetrieveData(RewriteQuestion):
             str: The string with single and double quotes escaped.
 
         Exceptions:
-            TypeError: If text is not a string.
+            TypeError: If a text is not a string.
         """
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         # lightweight operation — run inline
         return text.replace('"', '\\"').replace("'", "\\'")
 
-    async def retrieve_context_per_question(
+    async def retrieve_context_input_question(
         self, state: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
@@ -133,13 +117,14 @@ class RetrieveData(RewriteQuestion):
                 logger.info("Retrieving relevant chunks...")
                 # Some retrievers expose .invoke, some expose .get_relevant_documents. Use whatever is present.
                 if hasattr(self._chunks_query_retriever, "invoke"):
+                    docs = await asyncio.to_thread(self._chunks_query_retriever.invoke, question)
+                elif hasattr(self._chunks_query_retriever, "get_relevant_documents"):
                     docs = await asyncio.to_thread(
-                        self._chunks_query_retriever.invoke, question
+                        self._chunks_query_retriever.get_relevant_documents, question
                     )
                 else:
-                    docs = await asyncio.to_thread(
-                        self._chunks_query_retriever.invoke, question
-                    )
+                    docs = []
+
                 # join page_content safely
                 context = " ".join(getattr(doc, "page_content", "") for doc in docs)
 
@@ -147,7 +132,7 @@ class RetrieveData(RewriteQuestion):
             if self._chapter_summaries_query_retriever is not None:
                 logger.info("Retrieving relevant chapter summaries...")
                 docs_summaries = await asyncio.to_thread(
-                    self._chapter_summaries_query_retriever.get_relevant_documents,
+                    self._chapter_summaries_query_retriever.invoke,
                     question,
                 )
                 context_summaries = " ".join(
@@ -159,7 +144,7 @@ class RetrieveData(RewriteQuestion):
             if self._book_quotes_query_retriever is not None:
                 logger.info("Retrieving relevant book quotes...")
                 docs_book_quotes = await asyncio.to_thread(
-                    self._book_quotes_query_retriever.get_relevant_documents, question
+                    self._book_quotes_query_retriever.invoke, question
                 )
                 book_quotes = " ".join(
                     getattr(doc, "page_content", "") for doc in docs_book_quotes
@@ -169,90 +154,18 @@ class RetrieveData(RewriteQuestion):
             all_contexts = context + " " + context_summaries + " " + book_quotes
             all_contexts = self.escape_quotes(all_contexts)
             logger.info("Finished retrieve_context_per_question")
-            return {"context": all_contexts, "question": question}
+
+            state["context"] = all_contexts
+            return state
 
         except Exception as e:
             logger.exception("Error while retrieving context for question")
             raise RuntimeError("Failed to retrieve context from vector stores") from e
 
-    @measure_time
-    async def run_retriever_pipeline(self) -> Any:
-        """
-        Description:
-            Run the full retriever -> filter -> relevance check -> answer -> grade pipeline.
-
-        Params:
-            None
-
-        Return:
-            Any: The final graded answer/result from the pipeline.
-
-        Exceptions:
-            RuntimeError: If any step of the pipeline fails.
-        """
-        logger.info("Starting run_retriever_pipeline")
-        try:
-            # 1. Define the initial state with the question to answer
-            init_state = {"question": "who is fluffy?"}
-
-            # 2. Retrieve relevant context for the question from the vector stores (chunks, summaries, quotes)
-            context_state = await self.retrieve_context_per_question(init_state)
-
-            # 3. Use an LLM to filter and keep only the content relevant to the question from the retrieved context
-            relevant_content_state = await self.keep_only_relevant_content(
-                context_state
-            )
-
-            # 4. Check if the filtered content is relevant to the question using an LLM-based relevance check
-            # These methods are inherited from RewriteQuestion; they may be sync or async.
-            # We attempt to call them appropriately (prefer async if available).
-            if asyncio.iscoroutinefunction(self.is_relevant_content):
-                is_relevant_content_state = await self.is_relevant_content(
-                    relevant_content_state
-                )
-            else:
-                is_relevant_content_state = await asyncio.to_thread(
-                    self.is_relevant_content, relevant_content_state
-                )
-
-            # 5. Use an LLM to answer the question based on the relevant context
-            if asyncio.iscoroutinefunction(self.answer_question_from_context):
-                answer_state = await self.answer_question_from_context(
-                    relevant_content_state
-                )
-            else:
-                answer_state = await asyncio.to_thread(
-                    self.answer_question_from_context, relevant_content_state
-                )
-
-            # 6. Grade the generated answer:
-            #    - Check if the answer is grounded in the provided context (fact-checking)
-            #    - Check if the question can be fully answered from the context
-            if asyncio.iscoroutinefunction(
-                self.grade_generation_v_documents_and_question
-            ):
-                final_answer = await self.grade_generation_v_documents_and_question(
-                    answer_state
-                )
-            else:
-                final_answer = await asyncio.to_thread(
-                    self.grade_generation_v_documents_and_question, answer_state
-                )
-
-            # 7. Print the final answer (preserve original behavior)
-            print(
-                answer_state.get("answer")
-                if isinstance(answer_state, dict)
-                else answer_state
-            )
-            logger.info("Finished run_retriever_pipeline")
-            return final_answer
-
-        except Exception as e:
-            logger.exception("Error in run_retriever_pipeline")
-            raise RuntimeError("Retriever pipeline failed") from e
-
-    async def keep_only_relevant_content(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def keep_only_relevant_content(
+            self,
+            state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Description:
             Filters and keeps only the relevant content from the retrieved documents that is relevant to the query.
@@ -264,7 +177,7 @@ class RetrieveData(RewriteQuestion):
 
         Return:
             dict: A dictionary containing:
-                - "relevant_context": The filtered relevant content.
+                - "relevant_content": The filtered relevant content.
                 - "context": The original context.
                 - "question": The original question.
 
@@ -316,10 +229,10 @@ class RetrieveData(RewriteQuestion):
             pprint("--------------------")
             # chain.invoke may be blocking — run in a thread
             output = await asyncio.to_thread(
-                keep_only_relevant_content_chain.invoke, input_data
+                lambda: keep_only_relevant_content_chain.invoke(input_data)
             )
 
-            # handle output with structured model
+            # handle output with a structured model
             relevant_content = getattr(output, "relevant_content", None)
             if relevant_content is None:
                 # try dict-style output
@@ -334,12 +247,46 @@ class RetrieveData(RewriteQuestion):
             relevant_content = self.escape_quotes(relevant_content)
 
             logger.info("Finished keep_only_relevant_content")
-            return {
-                "relevant_context": relevant_content,
-                "context": context,
-                "question": question,
-            }
+
+            state["relevant_content"] = relevant_content
+
+            return state
 
         except Exception as e:
             logger.exception("Error while filtering relevant content using LLM")
-            raise RuntimeError("LLM filtering failed") from e
+            raise RuntimeError(f"LLM filtering failed: {e}") from e
+
+    @measure_time
+    async def run_retriever_pipeline(self) -> dict[str, Any]:
+        """
+        Description:
+            Run the full retriever -> filter -> relevance check -> answer -> grade pipeline.
+
+        Params:
+            None
+
+        Return:
+            Any: The final graded answer/result from the pipeline.
+
+        Exceptions:
+            RuntimeError: If any step of the pipeline fails.
+        """
+        logger.info("Starting run_retriever_pipeline")
+        try:
+            # 1. Define the initial state with the question to answer
+            # init_state = {"question": "who is fluffy?"}
+
+            # 2. Retrieve relevant context for the question from the vector stores (chunks, summaries, quotes)
+            context_state = await self.retrieve_context_input_question(state=self.init_state)
+
+            # 3. Use an LLM to filter and keep only the content relevant to the question from the retrieved context
+            relevant_content_state = await self.keep_only_relevant_content(
+                context_state
+            )
+
+            logger.info("Finished run_retriever_pipeline")
+            return relevant_content_state
+
+        except Exception as e:
+            logger.exception("Error in run_retriever_pipeline")
+            raise RuntimeError("Retriever pipeline failed") from e
