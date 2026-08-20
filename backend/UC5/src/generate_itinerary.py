@@ -1,10 +1,10 @@
 from langchain_core.messages import HumanMessage
-from langchain_community.chat_models import ChatOllama
+import langchain_ollama
 import json
 
 
 def generate_itinerary(state):
-    llm = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+    llm = langchain_ollama.ChatOllama(model="llama3.2", base_url="http://localhost:11434")
     prompt = f"""
     Using the following preferences, create a detailed itinerary:
     {json.dumps(state["preferences"], indent=2)}

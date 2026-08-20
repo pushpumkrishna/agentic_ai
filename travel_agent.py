@@ -2,7 +2,7 @@ import streamlit as st
 from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, END
 from langchain_ollama import ChatOllama
-from langchain_community.utilities import GoogleSerperAPIWrapper
+# from langchain_community.utilities import GoogleSerperAPIWrapper
 from dotenv import load_dotenv
 from backend.UC5.src import (
     generate_itinerary,
@@ -13,7 +13,7 @@ from backend.UC5.src import (
     food_culture_recommender,
     chat_agent,
 )
-from backend.utils.util import export_to_pdf
+# from backend.utils.util import export_to_pdf
 
 # Load environment variables
 load_dotenv()
@@ -27,11 +27,11 @@ except Exception as e:
     st.stop()
 
 # Initialize GoogleSerperAPIWrapper
-try:
-    search = GoogleSerperAPIWrapper()
-except Exception as e:
-    st.error(f"Serper API initialization failed: {str(e)}")
-    st.stop()
+# try:
+#     search = GoogleSerperAPIWrapper()
+# except Exception as e:
+#     st.error(f"Serper API initialization failed: {str(e)}")
+#     st.stop()
 
 
 # Define state
@@ -231,10 +231,10 @@ if st.session_state.state.get("itinerary"):
             with st.expander("🎯 Activity Suggestions", expanded=False):
                 st.markdown(st.session_state.state["activity_suggestions"])
 
-        if st.session_state.state.get("useful_links"):
-            with st.expander("🔗 Useful Links", expanded=False):
-                for link in st.session_state.state["useful_links"]:
-                    st.markdown(f"- [{link['title']}]({link['link']})")
+        # if st.session_state.state.get("useful_links"):
+        #     with st.expander("🔗 Useful Links", expanded=False):
+        #         for link in st.session_state.state["useful_links"]:
+        #             st.markdown(f"- [{link['title']}]({link['link']})")
 
         if st.session_state.state.get("weather_forecast"):
             with st.expander("🌤️ Weather Forecast", expanded=False):
@@ -249,13 +249,13 @@ if st.session_state.state.get("itinerary"):
                 st.markdown(st.session_state.state["food_culture_info"])
 
         # Export PDF button
-        if st.button("Export as PDF"):
-            pdf_path = export_to_pdf(st.session_state.state["itinerary"])
-            if pdf_path:
-                with open(pdf_path, "rb") as f:
-                    st.download_button(
-                        "Download Itinerary PDF", f, file_name="itinerary.pdf"
-                    )
+        # if st.button("Export as PDF"):
+            # pdf_path = export_to_pdf(st.session_state.state["itinerary"])
+            # if pdf_path:
+            #     with open(pdf_path, "rb") as f:
+            #         st.download_button(
+            #             "Download Itinerary PDF", f, file_name="itinerary.pdf"
+                    # )
 
     with col_chat:
         st.markdown("### Chat About Your Itinerary")
